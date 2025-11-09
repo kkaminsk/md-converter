@@ -54,16 +54,19 @@ export async function convertToDocx(
   // Determine output path
   const output = outputPath || inputPath.replace(/\.md$/, '.docx');
   
-  // Create document
+  // Create document with proper metadata for Word compatibility
   const doc = new docx.Document({
+    creator: "MD Converter",
+    description: "Converted from Markdown",
+    title: path.basename(inputPath, '.md'),
     sections: [{
       properties: {
         page: {
           margin: {
-            top: (options.margins?.top || 1440) * 20, // Convert to twips (1/20 of a point)
-            right: (options.margins?.right || 1440) * 20,
-            bottom: (options.margins?.bottom || 1440) * 20,
-            left: (options.margins?.left || 1440) * 20,
+            top: 1440, // 1 inch in twips
+            right: 1440,
+            bottom: 1440,
+            left: 1440,
           },
         },
       },
@@ -74,9 +77,9 @@ export async function convertToDocx(
   // Ensure output directory exists
   await fs.mkdir(path.dirname(output), { recursive: true });
   
-  // Write the document
+  // Write the document using Packer.toBuffer for proper binary format
   const buffer = await docx.Packer.toBuffer(doc);
-  await fs.writeFile(output, buffer);
+  await fs.writeFile(output, buffer, 'binary');
 
   return {
     success: true,
@@ -353,13 +356,25 @@ export async function convertMarkdownToDocx(
   const parsed = parseMarkdown(markdown);
 
   const doc = new docx.Document({
+    creator: "MD Converter",
+    description: "Converted from Markdown",
     sections: [{
+      properties: {
+        page: {
+          margin: {
+            top: 1440,
+            right: 1440,
+            bottom: 1440,
+            left: 1440,
+          },
+        },
+      },
       children: convertContentToDocx(parsed.content, options),
     }],
   });
 
   const buffer = await docx.Packer.toBuffer(doc);
-  await fs.writeFile(outputPath, buffer);
+  await fs.writeFile(outputPath, buffer, 'binary');
 
   return {
     success: true,
