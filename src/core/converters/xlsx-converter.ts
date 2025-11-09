@@ -10,6 +10,12 @@ import { validateFormula } from '../parsers/formula-parser.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+interface RichTextSegment {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+}
+
 export interface XlsxConversionOptions {
   freezeHeaders?: boolean;
   autoWidth?: boolean;
@@ -98,6 +104,68 @@ export async function convertToXlsx(
 }
 
 /**
+ * Parse markdown formatting in text and convert to Excel rich text
+ */
+function parseMarkdownFormatting(text: string): string | { richText: ExcelJS.RichText[] } {
+  // Check if there's any markdown formatting
+  if (!text.includes('**') && !text.includes('*') && !text.includes('_')) {
+    return text;
+  }
+
+  const segments: RichTextSegment[] = [];
+  // Split by bold (**text**), italic (*text* or _text_)
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_)/);
+  
+  for (const part of parts) {
+    if (!part) continue;
+    
+    if (part.startsWith('**') && part.endsWith('**')) {
+      // Bold
+      segments.push({
+        text: part.slice(2, -2),
+        bold: true,
+      });
+    } else if (part.startsWith('*') && part.endsWith('*')) {
+      // Italic
+      segments.push({
+        text: part.slice(1, -1),
+        italic: true,
+      });
+    } else if (part.startsWith('_') && part.endsWith('_')) {
+      // Italic (underscore)
+      segments.push({
+        text: part.slice(1, -1),
+        italic: true,
+      });
+    } else {
+      // Regular text
+      segments.push({
+        text: part,
+      });
+    }
+  }
+
+  // If only one segment with no formatting, return plain text
+  if (segments.length === 1 && !segments[0].bold && !segments[0].italic) {
+    return segments[0].text;
+  }
+
+  // Convert to ExcelJS rich text format
+  const richText: ExcelJS.RichText[] = segments.map(segment => {
+    const font: Partial<ExcelJS.Font> = {};
+    if (segment.bold) font.bold = true;
+    if (segment.italic) font.italic = true;
+    
+    return {
+      text: segment.text,
+      font: Object.keys(font).length > 0 ? font : undefined,
+    } as ExcelJS.RichText;
+  });
+
+  return { richText };
+}
+
+/**
  * Add a processed table to a worksheet
  */
 async function addTableToWorksheet(
@@ -114,7 +182,9 @@ async function addTableToWorksheet(
   if (table.headers.length > 0) {
     for (let col = 0; col < table.headers.length; col++) {
       const cell = worksheet.getCell(startRow, startCol + col);
-      cell.value = table.headers[col];
+      // Parse markdown formatting in headers
+      const headerValue = parseMarkdownFormatting(table.headers[col]);
+      cell.value = headerValue;
       
       // Apply header styling
       cell.font = { 
@@ -192,8 +262,17 @@ async function addTableToWorksheet(
         // Set as boolean
         cell.value = cellData.displayValue.toLowerCase() === 'true';
       } else {
-        // Set as text
-        cell.value = cellData.displayValue;
+        // Set as text with markdown formatting
+        const formattedValue = parseMarkdownFormatting(cellData.displayValue);
+        cell.value = formattedValue;
+        
+        // If it's rich text, check for bold to set font weight
+        if (typeof formattedValue === 'object' && 'richText' in formattedValue) {
+          const hasBold = formattedValue.richText.some(rt => rt.font?.bold);
+          if (hasBold && !cell.font) {
+            cell.font = { bold: false }; // Reset to allow rich text formatting
+          }
+        }
       }
 
       // Apply basic alignment
