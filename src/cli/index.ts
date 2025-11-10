@@ -16,6 +16,8 @@ import { convertToPptx } from '../core/converters/pptx-converter.js';
 import { parseMarkdown } from '../core/parsers/markdown.js';
 import { processTable, extractFormulas } from '../core/parsers/table-parser.js';
 import { validateFormula } from '../core/parsers/formula-parser.js';
+import { validateDocument } from '../core/validators/document-validator.js';
+import { parseFrontMatter, getFormats, shouldConvertDocument, shouldExcludeByPath } from '../core/parsers/frontmatter-parser.js';
 
 const program = new Command();
 
@@ -35,6 +37,8 @@ program
   .option('--theme <theme>', 'Presentation theme: light or dark (PPTX only)', 'light')
   .option('--font-family <family>', 'Font family to use', 'Arial')
   .option('--font-size <size>', 'Font size in points', '12')
+  .option('--strict', 'Fail on warnings (not just errors)', false)
+  .option('--no-validate', 'Skip validation before conversion', false)
   .action(async (input, options) => {
     try {
       await handleConvert(input, options);
@@ -115,13 +119,74 @@ async function handleConvert(input: string, options: any): Promise<void> {
 
   let successCount = 0;
   let errorCount = 0;
+  let skippedCount = 0;
 
   // Convert each file
   for (const file of files) {
+    // Check if file should be excluded by path
+    if (shouldExcludeByPath(file)) {
+      console.log(chalk.grey(`Skipping: ${file} (excluded by path pattern)`));
+      skippedCount++;
+      continue;
+    }
+    
     console.log(chalk.cyan(`Converting: ${file}`));
     
     try {
-      for (const fmt of formats) {
+      // Check metadata for exclusion
+      const content = await fs.readFile(file, 'utf-8');
+      const { metadata } = parseFrontMatter(content);
+      
+      if (!shouldConvertDocument(metadata)) {
+        const reason = metadata?.convert === false ? 'convert: false' : `document_type: ${metadata?.document_type}`;
+        console.log(chalk.grey(`  ⊘ Skipped (${reason})`));
+        console.log();
+        skippedCount++;
+        continue;
+      }
+      // Validate document if validation is enabled
+      if (options.validate !== false) {
+        const validation = validateDocument(content);
+        
+        // Display errors
+        if (validation.errors.length > 0) {
+          console.log(chalk.red(`  ✗ Validation errors:`));
+          validation.errors.forEach((error) => {
+            console.log(chalk.red(`    • ${error}`));
+          });
+          errorCount++;
+          console.log();
+          continue; // Skip conversion if validation fails
+        }
+        
+        // Display warnings
+        if (validation.warnings.length > 0) {
+          console.log(chalk.yellow(`  ⚠ Warnings:`));
+          validation.warnings.forEach((warning) => {
+            console.log(chalk.yellow(`    • ${warning}`));
+          });
+          
+          // Fail on warnings if strict mode
+          if (options.strict) {
+            errorCount++;
+            console.log();
+            continue;
+          }
+        }
+        
+        // Display metadata summary
+        if (validation.metadata) {
+          console.log(chalk.grey(`  📄 ${validation.metadata.title || 'Untitled'} (${validation.metadata.format})`));
+          if (validation.metadata.version) {
+            console.log(chalk.grey(`     v${validation.metadata.version} - ${validation.metadata.status || 'draft'}`));
+          }
+        }
+      }
+      
+      // Determine formats to generate from front matter or CLI option
+      const formatsToGenerate = metadata ? getFormats(metadata) : formats;
+      
+      for (const fmt of formatsToGenerate) {
         const outputPath = await getOutputPath(file, fmt, options);
         
         await convertFile(file, outputPath, fmt, options);
@@ -140,6 +205,9 @@ async function handleConvert(input: string, options: any): Promise<void> {
   // Summary
   console.log(chalk.bold('Conversion Summary:'));
   console.log(chalk.green(`  ✓ Success: ${successCount}`));
+  if (skippedCount > 0) {
+    console.log(chalk.grey(`  ⊘ Skipped: ${skippedCount}`));
+  }
   if (errorCount > 0) {
     console.log(chalk.red(`  ✗ Failed: ${errorCount}`));
   }

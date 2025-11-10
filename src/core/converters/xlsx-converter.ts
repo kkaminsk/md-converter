@@ -7,6 +7,7 @@ import ExcelJS from 'exceljs';
 import { parseMarkdown, type TableData } from '../parsers/markdown.js';
 import { processTable, type ProcessedTable } from '../parsers/table-parser.js';
 import { validateFormula } from '../parsers/formula-parser.js';
+import { parseFrontMatter } from '../parsers/frontmatter-parser.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -45,7 +46,10 @@ export async function convertToXlsx(
   options: XlsxConversionOptions = {}
 ): Promise<XlsxConversionResult> {
   // Read markdown file
-  const markdownContent = await fs.readFile(inputPath, 'utf-8');
+  const rawMarkdown = await fs.readFile(inputPath, 'utf-8');
+  
+  // Parse front matter
+  const { metadata, content: markdownContent, warnings: fmWarnings } = parseFrontMatter(rawMarkdown);
   
   // Parse markdown
   const parsed = parseMarkdown(markdownContent);
@@ -59,12 +63,16 @@ export async function convertToXlsx(
   
   // Create workbook
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'MD Converter';
+  workbook.creator = metadata?.author || 'MD Converter';
   workbook.created = new Date();
+  if (metadata?.title) workbook.title = metadata.title;
+  if (metadata?.subject) workbook.subject = metadata.subject;
+  if (metadata?.keywords) workbook.keywords = metadata.keywords.join(', ');
+  if (metadata?.description) workbook.description = metadata.description;
   
   const worksheetNames: string[] = [];
   let totalFormulas = 0;
-  const warnings: string[] = [];
+  const warnings: string[] = [...fmWarnings];
 
   // Process each table
   for (let i = 0; i < parsed.tables.length; i++) {
@@ -186,11 +194,13 @@ async function addTableToWorksheet(
       const headerValue = parseMarkdownFormatting(table.headers[col]);
       cell.value = headerValue;
       
-      // Apply header styling
-      cell.font = { 
-        bold: options.headerStyle?.bold !== false,
-        size: options.headerStyle?.fontSize || 12,
-      };
+      // Apply header styling (only if not rich text)
+      if (typeof headerValue !== 'object' || !('richText' in headerValue)) {
+        cell.font = { 
+          bold: options.headerStyle?.bold !== false,
+          size: options.headerStyle?.fontSize || 12,
+        };
+      }
       
       if (options.headerStyle?.fillColor) {
         cell.fill = {
@@ -266,13 +276,8 @@ async function addTableToWorksheet(
         const formattedValue = parseMarkdownFormatting(cellData.displayValue);
         cell.value = formattedValue;
         
-        // If it's rich text, check for bold to set font weight
-        if (typeof formattedValue === 'object' && 'richText' in formattedValue) {
-          const hasBold = formattedValue.richText.some(rt => rt.font?.bold);
-          if (hasBold && !cell.font) {
-            cell.font = { bold: false }; // Reset to allow rich text formatting
-          }
-        }
+        // Rich text formatting is handled by ExcelJS automatically
+        // No need to set cell.font - it would override the rich text formatting
       }
 
       // Apply basic alignment

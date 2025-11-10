@@ -8,6 +8,8 @@ import * as docx from 'docx';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { parseMarkdown, type ContentBlock, type TableData } from '../parsers/markdown.js';
+import { parseFrontMatter, type DocumentMetadata } from '../parsers/frontmatter-parser.js';
+import { shouldCreateSectionBreak } from './section-rules.js';
 
 export interface DocxConversionOptions {
   pageSize?: 'A4' | 'LETTER';
@@ -46,32 +48,57 @@ export async function convertToDocx(
   options: DocxConversionOptions = {}
 ): Promise<DocxConversionResult> {
   // Read markdown file
-  const markdownContent = await fs.readFile(inputPath, 'utf-8');
+  const rawMarkdown = await fs.readFile(inputPath, 'utf-8');
   
-  // Parse markdown
+  // Parse front matter
+  const { metadata, content: markdownContent, warnings } = parseFrontMatter(rawMarkdown);
+  
+  // Parse markdown content
   const parsed = parseMarkdown(markdownContent);
   
   // Determine output path
   const output = outputPath || inputPath.replace(/\.md$/, '.docx');
   
+  // Split content into sections at horizontal rules (using metadata rules)
+  const sections = splitIntoSections(parsed.content, options, metadata);
+  
   // Create document with proper metadata for Word compatibility
   const doc = new docx.Document({
-    creator: "MD Converter",
-    description: "Converted from Markdown",
-    title: path.basename(inputPath, '.md'),
-    sections: [{
-      properties: {
-        page: {
-          margin: {
-            top: 1440, // 1 inch in twips
-            right: 1440,
-            bottom: 1440,
-            left: 1440,
-          },
+    creator: metadata?.author || "MD Converter",
+    title: metadata?.title || path.basename(inputPath, '.md'),
+    description: metadata?.description,
+    subject: metadata?.subject,
+    keywords: metadata?.keywords?.join(', '),
+    // Custom properties for classification, version, status, date
+    ...(metadata && (metadata.classification || metadata.version || metadata.status || metadata.date) ? {
+      sections: sections.map((section, index) => ({
+        ...section,
+        properties: {
+          ...section.properties,
+          // Add custom document properties via headers/footers if needed
         },
-      },
-      children: convertContentToDocx(parsed.content, options),
-    }],
+      })),
+    } : { sections }),
+    numbering: {
+      config: [
+        {
+          reference: 'default-numbering',
+          levels: [
+            {
+              level: 0,
+              format: docx.LevelFormat.DECIMAL,
+              text: '%1.',
+              alignment: docx.AlignmentType.START,
+              style: {
+                paragraph: {
+                  indent: { left: 720, hanging: 260 },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
   });
 
   // Ensure output directory exists
@@ -84,8 +111,72 @@ export async function convertToDocx(
   return {
     success: true,
     outputPath: output,
-    warnings: [],
+    warnings: warnings,
   };
+}
+
+/**
+ * Split content into sections at horizontal rules (---)
+ * Intelligently creates section breaks based on metadata rules
+ */
+function splitIntoSections(
+  content: ContentBlock[],
+  options: DocxConversionOptions,
+  metadata: DocumentMetadata | null
+): docx.ISectionOptions[] {
+  const sections: docx.ISectionOptions[] = [];
+  let currentSection: ContentBlock[] = [];
+
+  for (let i = 0; i < content.length; i++) {
+    const block = content[i];
+    
+    if (block.type === 'hr') {
+      // Check if this HR should create a section break
+      if (shouldCreateSectionBreak(i, content, metadata)) {
+        // Create section from accumulated content
+        if (currentSection.length > 0) {
+          sections.push({
+            properties: {
+              page: {
+                margin: {
+                  top: 1440, // 1 inch in twips
+                  right: 1440,
+                  bottom: 1440,
+                  left: 1440,
+                },
+              },
+            },
+            children: convertContentToDocx(currentSection, options, metadata),
+          });
+          currentSection = [];
+        }
+      } else {
+        // Not a section break, add as visual divider
+        currentSection.push(block);
+      }
+    } else {
+      currentSection.push(block);
+    }
+  }
+
+  // Add final section
+  if (currentSection.length > 0 || sections.length === 0) {
+    sections.push({
+      properties: {
+        page: {
+          margin: {
+            top: 1440,
+            right: 1440,
+            bottom: 1440,
+            left: 1440,
+          },
+        },
+      },
+      children: currentSection.length > 0 ? convertContentToDocx(currentSection, options, metadata) : [new docx.Paragraph({ text: '' })],
+    });
+  }
+
+  return sections;
 }
 
 /**
@@ -93,7 +184,8 @@ export async function convertToDocx(
  */
 function convertContentToDocx(
   content: ContentBlock[],
-  options: DocxConversionOptions
+  options: DocxConversionOptions,
+  metadata?: DocumentMetadata | null
 ): Array<docx.Paragraph | docx.Table> {
   const elements: Array<docx.Paragraph | docx.Table> = [];
 
@@ -122,6 +214,7 @@ function convertContentToDocx(
         break;
       
       case 'hr':
+        // HR not handled as section break, render as visual divider
         elements.push(createHorizontalRule());
         break;
     }
@@ -156,6 +249,7 @@ function createParagraph(block: ContentBlock, options: DocxConversionOptions): d
   
   return new docx.Paragraph({
     children: runs,
+    style: 'Normal',
     spacing: {
       after: 120,
     },
@@ -177,42 +271,35 @@ function parseInlineFormatting(text: string, options: DocxConversionOptions): do
     if (!segment) continue;
     
     if (segment.startsWith('**') && segment.endsWith('**')) {
-      // Bold
+      // Bold - use Strong character style
       runs.push(new docx.TextRun({
         text: segment.slice(2, -2),
         bold: true,
-        size: (options.fontSize || 11) * 2, // Size in half-points
-        font: options.fontFamily || 'Calibri',
+        style: 'Strong',
       }));
     } else if (segment.startsWith('*') && segment.endsWith('*')) {
-      // Italic
+      // Italic - use Emphasis character style
       runs.push(new docx.TextRun({
         text: segment.slice(1, -1),
         italics: true,
-        size: (options.fontSize || 11) * 2,
-        font: options.fontFamily || 'Calibri',
+        style: 'Emphasis',
       }));
     } else if (segment.startsWith('`') && segment.endsWith('`')) {
-      // Inline code
+      // Inline code - use monospace font
       runs.push(new docx.TextRun({
         text: segment.slice(1, -1),
         font: 'Courier New',
-        size: (options.fontSize || 11) * 2,
       }));
     } else {
-      // Regular text
+      // Regular text - no explicit style, inherits from paragraph
       runs.push(new docx.TextRun({
         text: segment,
-        size: (options.fontSize || 11) * 2,
-        font: options.fontFamily || 'Calibri',
       }));
     }
   }
   
   return runs.length > 0 ? runs : [new docx.TextRun({ 
-    text, 
-    size: (options.fontSize || 11) * 2,
-    font: options.fontFamily || 'Calibri',
+    text,
   })];
 }
 
@@ -227,6 +314,7 @@ function createList(block: ContentBlock, options: DocxConversionOptions): docx.P
     
     return new docx.Paragraph({
       children: runs,
+      style: 'ListParagraph',
       bullet: block.ordered ? undefined : { level: 0 },
       numbering: block.ordered ? { reference: 'default-numbering', level: 0 } : undefined,
       spacing: {
@@ -252,10 +340,10 @@ function createTable(tableData: TableData, options: DocxConversionOptions): docx
               new docx.TextRun({
                 text: header,
                 bold: true,
-                size: (options.fontSize || 11) * 2,
-                font: options.fontFamily || 'Calibri',
+                style: 'Strong',
               }),
             ],
+            style: 'Normal',
           }),
         ],
         shading: {
@@ -276,6 +364,7 @@ function createTable(tableData: TableData, options: DocxConversionOptions): docx
         children: [
           new docx.Paragraph({
             children: runs,
+            style: 'Normal',
           }),
         ],
       });
@@ -312,9 +401,9 @@ function createCodeBlock(block: ContentBlock, options: DocxConversionOptions): d
       new docx.TextRun({
         text: code,
         font: 'Courier New',
-        size: (options.fontSize || 10) * 2,
       }),
     ],
+    style: 'Normal',
     shading: {
       fill: 'F5F5F5', // Light grey background
     },
@@ -327,6 +416,7 @@ function createCodeBlock(block: ContentBlock, options: DocxConversionOptions): d
 
 /**
  * Create a horizontal rule
+ * Note: HRs are now handled as section breaks, but keeping this for backwards compatibility
  */
 function createHorizontalRule(): docx.Paragraph {
   return new docx.Paragraph({
@@ -353,24 +443,42 @@ export async function convertMarkdownToDocx(
   outputPath: string,
   options: DocxConversionOptions = {}
 ): Promise<DocxConversionResult> {
-  const parsed = parseMarkdown(markdown);
+  // Parse front matter
+  const { metadata, content: markdownContent, warnings } = parseFrontMatter(markdown);
+  
+  // Parse markdown content
+  const parsed = parseMarkdown(markdownContent);
+
+  // Split content into sections at horizontal rules (using metadata rules)
+  const sections = splitIntoSections(parsed.content, options, metadata);
 
   const doc = new docx.Document({
-    creator: "MD Converter",
-    description: "Converted from Markdown",
-    sections: [{
-      properties: {
-        page: {
-          margin: {
-            top: 1440,
-            right: 1440,
-            bottom: 1440,
-            left: 1440,
-          },
+    creator: metadata?.author || "MD Converter",
+    title: metadata?.title || "Untitled Document",
+    description: metadata?.description,
+    subject: metadata?.subject,
+    keywords: metadata?.keywords?.join(', '),
+    numbering: {
+      config: [
+        {
+          reference: 'default-numbering',
+          levels: [
+            {
+              level: 0,
+              format: docx.LevelFormat.DECIMAL,
+              text: '%1.',
+              alignment: docx.AlignmentType.START,
+              style: {
+                paragraph: {
+                  indent: { left: 720, hanging: 260 },
+                },
+              },
+            },
+          ],
         },
-      },
-      children: convertContentToDocx(parsed.content, options),
-    }],
+      ],
+    },
+    sections: sections,
   });
 
   const buffer = await docx.Packer.toBuffer(doc);
@@ -379,7 +487,7 @@ export async function convertMarkdownToDocx(
   return {
     success: true,
     outputPath,
-    warnings: [],
+    warnings,
   };
 }
 

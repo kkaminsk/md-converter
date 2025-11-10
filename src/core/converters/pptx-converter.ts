@@ -8,6 +8,8 @@ import * as PptxGenJS from 'pptxgenjs';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { parseMarkdown, splitByHorizontalRules, extractContent, type ContentBlock, type TableData } from '../parsers/markdown.js';
+import { parseFrontMatter, type DocumentMetadata } from '../parsers/frontmatter-parser.js';
+import { shouldCreateSlideBreak } from './section-rules.js';
 
 export interface PptxConversionOptions {
   theme?: 'light' | 'dark';
@@ -32,7 +34,10 @@ export async function convertToPptx(
   options: PptxConversionOptions = {}
 ): Promise<PptxConversionResult> {
   // Read markdown file
-  const markdownContent = await fs.readFile(inputPath, 'utf-8');
+  const rawMarkdown = await fs.readFile(inputPath, 'utf-8');
+  
+  // Parse front matter
+  const { metadata, content: markdownContent, warnings: fmWarnings } = parseFrontMatter(rawMarkdown);
   
   // Parse markdown
   const parsed = parseMarkdown(markdownContent);
@@ -40,17 +45,18 @@ export async function convertToPptx(
   // Determine output path
   const output = outputPath || inputPath.replace(/\.md$/, '.pptx');
   
-  const warnings: string[] = [];
+  const warnings: string[] = [...fmWarnings];
 
   // Create presentation
   // @ts-ignore
   const pres = new (PptxGenJS as any).default();
   
-  // Set presentation properties
-  pres.author = 'MD Converter';
+  // Set presentation properties from metadata
+  pres.author = metadata?.author || 'MD Converter';
   pres.company = '';
-  pres.subject = 'Converted from Markdown';
-  pres.title = 'Presentation';
+  pres.subject = metadata?.subject || 'Converted from Markdown';
+  pres.title = metadata?.title || path.basename(inputPath, '.md');
+  pres.keywords = metadata?.keywords?.join(', ') || '';
 
   // Apply theme
   const themeColors = getThemeColors(options.theme || 'light');
