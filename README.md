@@ -1040,9 +1040,9 @@ Service Design Lead
 
 ## Acknowledgments
 
-Built for real-world consulting needs, refined through production use on Australian Government projects.
+Built for real-world consulting needs, refined through production use on enterprise and government consulting projects.
 
-**Special thanks to the DCCEEW AI Capability Enablement project** for providing the demanding use case that drove these enhancements.
+Developed to support the **IDE-first consulting approach**, enabling consultants to leverage AI assistance while maintaining professional client deliverables.
 
 ---
 
