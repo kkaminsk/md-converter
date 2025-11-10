@@ -39,21 +39,21 @@ Converting manually wastes time and breaks the IDE-first workflow.
 
 **Result:** Consultants stay in flow, clients get professional deliverables.
 
-### Real-World Example: DCCEEW AI Capability Project
+### Real-World Consulting Example
 
-**Challenge:** Deliver comprehensive AI capability planning to government client
-- 22 planning documents covering architecture, delivery, resourcing, governance
-- Executive brief for CIO decision
-- Financial model for $8.9M programme
-- Professional formatting required (OFFICIAL classification, proper metadata)
+**Challenge:** Deliver comprehensive strategic planning to enterprise client
+- 20+ planning documents covering strategy, architecture, delivery, budget
+- Executive brief for C-suite decision
+- Financial model for multi-year programme
+- Professional formatting required (corporate classification, proper metadata)
 
 **Solution:** 
-- All planning done in Markdown with AI assistance
+- All planning done in Markdown with AI assistance in IDE
 - YAML front matter for classification, versions, authors
-- Single command: `md-convert "**/*.md"` → 17 DOCX + 1 XLSX
+- Single command: `md-convert "**/*.md"` → 15 DOCX + 1 XLSX
 - Intelligent exclusion of reference materials and system files
 - Section breaks at major boundaries for independent formatting
-- Professional Word styles for template compatibility
+- Professional Word styles for client template compatibility
 
 **Outcome:** 
 - Planning completed in days, not weeks
@@ -761,19 +761,19 @@ format: all
 
 ## Examples
 
-### Government Executive Brief
+### Executive Brief
 
 ```yaml
 ---
 format: docx
-title: "Executive Brief – AI Capability Enablement"
-author: "Dale Rogers"
-date: "2025-11-07"
-classification: "OFFICIAL"
+title: "Executive Brief – Digital Transformation Strategy"
+author: "Jane Smith"
+date: "2025-11-10"
+classification: "CONFIDENTIAL"
 version: "1.0"
 status: final
-description: "Executive decision brief presenting three delivery options"
-keywords: ["AI", "capability", "executive brief", "decision"]
+description: "Executive decision brief presenting strategic recommendations"
+keywords: ["strategy", "digital transformation", "executive brief"]
 subject: "Executive Briefing"
 section_breaks: auto
 ---
@@ -789,14 +789,14 @@ section_breaks: auto
 ```yaml
 ---
 format: xlsx
-title: "ROM Costing Model"
-author: "Dale Rogers"
-date: "2025-11-07"
-classification: "OFFICIAL"
+title: "Project Budget Model"
+author: "John Doe"
+date: "2025-11-10"
+classification: "CONFIDENTIAL"
 version: "1.0"
 status: final
-description: "Budget model with detailed cost breakdown"
-keywords: ["ROM", "budget", "costing", "financial"]
+description: "Budget model with detailed cost breakdown and forecasts"
+keywords: ["budget", "costing", "financial model", "forecast"]
 subject: "Financial Planning"
 ---
 
@@ -807,6 +807,8 @@ subject: "Financial Planning"
 | Item | Cost |
 |------|------|
 | Labour | {=SUM(B2:B10)} |
+| Infrastructure | $50,000 |
+| **Total** | {=SUM(B2:B11)} |
 ```
 
 ### Reference Material

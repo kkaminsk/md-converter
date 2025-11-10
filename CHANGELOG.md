@@ -183,8 +183,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Primary Developer:** Dale Rogers
 
-**Tested on:** DCCEEW AI Capability Enablement project (Australian Government)
-- 22 planning documents
+**Tested on:** Enterprise and government consulting projects
+- 20+ planning documents
 - Executive briefings, architecture documents, financial models
 - Validated with Microsoft Word 365, Excel 365, PowerPoint 365
 
