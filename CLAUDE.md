@@ -6,20 +6,26 @@ This file provides guidance for AI assistants working with this codebase.
 
 MD Converter is a TypeScript tool that converts Markdown files to Microsoft Office formats (DOCX, XLSX, PPTX). It supports YAML front matter for metadata, Excel formulas in tables, and provides both CLI and MCP (Model Context Protocol) server interfaces.
 
+**Status:** Migrating to Pandoc-based conversion engine (see [Pandoc Migration](#pandoc-migration) below).
+
 ## Tech Stack
 
 - **Language:** TypeScript (ES Modules)
 - **Runtime:** Node.js 18+
 - **Build:** tsc (TypeScript compiler)
+- **Conversion Engine:** Pandoc 3.0+ (external dependency)
 - **Key Dependencies:**
-  - `docx` - Word document generation
-  - `exceljs` - Excel workbook generation
-  - `pptxgenjs` - PowerPoint presentation generation
-  - `markdown-it` - Markdown parsing
+  - `exceljs` - Excel workbook generation (retained for XLSX)
+  - `markdown-it` - Markdown parsing (for validation/preview)
   - `js-yaml` - YAML front matter parsing
+  - `jszip` - OOXML post-processing
   - `@modelcontextprotocol/sdk` - MCP server integration
   - `commander` - CLI framework
   - `chalk` - Terminal styling
+
+### Legacy Dependencies (being removed)
+  - `docx` - Word document generation (replaced by Pandoc)
+  - `pptxgenjs` - PowerPoint generation (replaced by Pandoc)
 
 ## Project Structure
 
@@ -30,10 +36,20 @@ src/
 │   └── index.ts               # CLI entry point (md-convert command)
 ├── core/
 │   ├── converters/
-│   │   ├── docx-converter.ts  # Markdown → Word
-│   │   ├── xlsx-converter.ts  # Markdown tables → Excel (with formulas)
-│   │   ├── pptx-converter.ts  # Markdown → PowerPoint
+│   │   ├── docx-converter.ts  # Markdown → Word (via Pandoc)
+│   │   ├── xlsx-converter.ts  # Markdown tables → Excel (Pandoc AST + ExcelJS)
+│   │   ├── pptx-converter.ts  # Markdown → PowerPoint (via Pandoc)
 │   │   └── section-rules.ts   # Section/slide break logic
+│   ├── pandoc/                # NEW: Pandoc integration layer
+│   │   ├── executor.ts        # Pandoc process spawning & management
+│   │   ├── pre-processor.ts   # Formula extraction, metadata normalization
+│   │   ├── post-processor.ts  # Formula injection, OOXML patching
+│   │   ├── types.ts           # TypeScript interfaces
+│   │   ├── errors.ts          # Pandoc-specific error classes
+│   │   └── filters/           # Lua filters
+│   │       ├── section-breaks.lua
+│   │       ├── slide-breaks.lua
+│   │       └── metadata-inject.lua
 │   ├── parsers/
 │   │   ├── markdown.ts        # Markdown AST parsing
 │   │   ├── frontmatter-parser.ts  # YAML metadata extraction
@@ -41,9 +57,15 @@ src/
 │   │   └── formula-parser.ts  # Excel formula validation
 │   └── validators/
 │       └── document-validator.ts  # Document structure validation
-└── mcp/
-    ├── server.ts              # MCP server (STDIO mode)
-    └── tools.ts               # MCP tool definitions
+├── mcp/
+│   ├── server.ts              # MCP server (STDIO mode)
+│   └── tools.ts               # MCP tool definitions
+└── templates/                  # NEW: Pandoc reference documents
+    ├── reference.docx         # Word styling template
+    ├── reference.pptx         # PowerPoint template
+    └── defaults/
+        ├── docx.yaml          # Pandoc defaults for DOCX
+        └── pptx.yaml          # Pandoc defaults for PPTX
 ```
 
 ## Commands
@@ -159,6 +181,71 @@ The MCP server exposes 5 tools:
 - Each markdown table becomes a separate Excel worksheet
 - Word documents use built-in styles (Normal, Heading 1-6, ListParagraph, Strong, Emphasis)
 
+## Pandoc Migration
+
+The project is migrating from library-specific converters to a unified Pandoc-based architecture.
+
+### Why Pandoc?
+
+- Single conversion engine for all formats (vs 3 separate libraries)
+- Battle-tested (18+ years, used by publishers/academics)
+- Lua filters for extensible transformations
+- Reference documents for consistent styling
+- Native DOCX/PPTX support; XLSX via hybrid approach
+
+### Migration Status
+
+See `openspec/changes/` for detailed proposals:
+
+| Change | Status | Description |
+|--------|--------|-------------|
+| A - Pandoc Executor Foundation | Planned | Core process wrapper, error handling |
+| B - Pandoc Pre-Processor | Planned | Formula extraction, metadata normalization |
+| C - Lua Filters & Templates | Planned | section-breaks.lua, reference docs |
+| D - Pandoc Post-Processor | Planned | Formula injection, OOXML patching |
+| E - DOCX Converter Migration | Planned | Refactor to use Pandoc |
+| F - PPTX Converter Migration | Planned | Refactor to use Pandoc |
+| G - XLSX Hybrid Implementation | Planned | Pandoc AST + ExcelJS |
+| H - Cleanup & Integration | Planned | Remove old deps, integration tests |
+
+### Pandoc Conversion Flow
+
+```
+Markdown Input
+     │
+     ▼
+┌─────────────────┐
+│ Pre-Processor   │ ← Extract formulas, normalize metadata
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Pandoc Executor │ ← Spawn pandoc with filters & reference docs
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Post-Processor  │ ← Inject formulas, patch properties
+└────────┬────────┘
+         │
+         ▼
+   Office Output
+```
+
+### Key Files
+
+- `pandoc-specification.md` - Full technical specification
+- `openspec/changes/A-*` through `H-*` - Implementation proposals
+
+### Environment Variables
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `PANDOC_PATH` | Custom Pandoc binary location | Auto-detect |
+| `MD_CONVERTER_TEMPLATES` | Custom templates directory | `./templates` |
+| `MD_CONVERTER_FILTERS` | Custom filters directory | `./src/pandoc/filters` |
+| `PANDOC_TIMEOUT` | Conversion timeout (ms) | `30000` |
+
 ## Testing
 
 Tests use Jest with ES modules support:
@@ -179,3 +266,20 @@ When adding new YAML fields:
 1. Add to `DocumentMetadata` interface in `frontmatter-parser.ts`
 2. Add validation in `validateFrontMatter()` function
 3. Update converters to use the new field
+
+When working with Pandoc components:
+- `PandocExecutor` - Use for all Pandoc process spawning
+- `PreProcessor.process()` - Call before sending content to Pandoc
+- `PostProcessor.process()` - Call after Pandoc generates output
+- Lua filters read metadata via `Meta(meta)` function
+- Reference docs control styling; edit templates/*.docx or templates/*.pptx
+
+When adding new Lua filters:
+1. Create filter in `src/pandoc/filters/`
+2. Add to defaults file in `templates/defaults/`
+3. Test with: `pandoc test.md --lua-filter=yourfilter.lua -t native`
+
+When debugging Pandoc issues:
+- View AST: `pandoc input.md -t json | python -m json.tool`
+- Verbose output: `pandoc input.md -o out.docx --verbose`
+- Check version: `pandoc --version` (need 3.0+)
