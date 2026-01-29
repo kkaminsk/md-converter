@@ -40,13 +40,14 @@ src/
 │   │   ├── xlsx-converter.ts  # Markdown tables → Excel (Pandoc AST + ExcelJS)
 │   │   ├── pptx-converter.ts  # Markdown → PowerPoint (via Pandoc)
 │   │   └── section-rules.ts   # Section/slide break logic
-│   ├── pandoc/                # NEW: Pandoc integration layer
+│   ├── pandoc/                # Pandoc integration layer
 │   │   ├── executor.ts        # Pandoc process spawning & management
 │   │   ├── pre-processor.ts   # Formula extraction, metadata normalization
-│   │   ├── post-processor.ts  # Formula injection, OOXML patching
+│   │   ├── post-processor.ts  # Formula injection, OOXML patching (planned)
 │   │   ├── types.ts           # TypeScript interfaces
 │   │   ├── errors.ts          # Pandoc-specific error classes
-│   │   └── filters/           # Lua filters
+│   │   ├── index.ts           # Module exports
+│   │   └── filters/           # Lua filters (planned)
 │   │       ├── section-breaks.lua
 │   │       ├── slide-breaks.lua
 │   │       └── metadata-inject.lua
@@ -199,8 +200,8 @@ See `openspec/changes/` for detailed proposals:
 
 | Change | Status | Description |
 |--------|--------|-------------|
-| A - Pandoc Executor Foundation | Planned | Core process wrapper, error handling |
-| B - Pandoc Pre-Processor | Planned | Formula extraction, metadata normalization |
+| A - Pandoc Executor Foundation | **Done** | Core process wrapper, error handling |
+| B - Pandoc Pre-Processor | **Done** | Formula extraction, metadata normalization |
 | C - Lua Filters & Templates | Planned | section-breaks.lua, reference docs |
 | D - Pandoc Post-Processor | Planned | Formula injection, OOXML patching |
 | E - DOCX Converter Migration | Planned | Refactor to use Pandoc |
@@ -269,8 +270,15 @@ When adding new YAML fields:
 
 When working with Pandoc components:
 - `PandocExecutor` - Use for all Pandoc process spawning
-- `PreProcessor.process()` - Call before sending content to Pandoc
-- `PostProcessor.process()` - Call after Pandoc generates output
+  - `checkInstallation()` - Verify Pandoc is available
+  - `convert(content, options)` - Convert markdown to output format
+  - `toAST(content)` - Get Pandoc AST as JSON
+- `PreProcessor.process(markdown, options)` - Call before sending content to Pandoc
+  - Extracts `{=FORMULA}` patterns from tables → placeholders (`__FORMULA_0_1_2__`)
+  - Normalizes metadata (adds `subject` from `classification`, `generator` field)
+  - Normalizes line endings (CRLF → LF)
+  - Returns `{ content, extractedData: { formulas, metadata, tableCount }, warnings }`
+- `PostProcessor.process()` - Call after Pandoc generates output (planned)
 - Lua filters read metadata via `Meta(meta)` function
 - Reference docs control styling; edit templates/*.docx or templates/*.pptx
 
