@@ -17,7 +17,19 @@ import { parseMarkdown } from '../core/parsers/markdown.js';
 import { processTable, extractFormulas } from '../core/parsers/table-parser.js';
 import { validateFormula } from '../core/parsers/formula-parser.js';
 import { validateDocument } from '../core/validators/document-validator.js';
-import { parseFrontMatter, getFormats, shouldConvertDocument, shouldExcludeByPath } from '../core/parsers/frontmatter-parser.js';
+import {
+  parseFrontMatter,
+  getFormats,
+  shouldConvertDocument,
+  shouldExcludeByPath,
+} from '../core/parsers/frontmatter-parser.js';
+import {
+  ConverterError,
+  FormulaValidationError,
+  FrontMatterError,
+  ConversionError,
+  ValidationError,
+} from '../core/errors.js';
 
 const program = new Command();
 
@@ -43,7 +55,7 @@ program
     try {
       await handleConvert(input, options);
     } catch (error) {
-      console.error(chalk.red('Error:'), error instanceof Error ? error.message : String(error));
+      handleError(error);
       process.exit(1);
     }
   });
@@ -57,7 +69,7 @@ program
     try {
       await handlePreview(input);
     } catch (error) {
-      console.error(chalk.red('Error:'), error instanceof Error ? error.message : String(error));
+      handleError(error);
       process.exit(1);
     }
   });
@@ -71,7 +83,7 @@ program
     try {
       await handleValidate(input);
     } catch (error) {
-      console.error(chalk.red('Error:'), error instanceof Error ? error.message : String(error));
+      handleError(error);
       process.exit(1);
     }
   });
@@ -86,7 +98,7 @@ program
       const { startMcpServer } = await import('../mcp/server.js');
       await startMcpServer();
     } catch (error) {
-      console.error(chalk.red('Error:'), error instanceof Error ? error.message : String(error));
+      handleError(error);
       process.exit(1);
     }
   });
@@ -109,7 +121,7 @@ async function handleConvert(input: string, options: any): Promise<void> {
 
   // Find input files
   const files = await findInputFiles(input);
-  
+
   if (files.length === 0) {
     throw new Error(`No markdown files found matching: ${input}`);
   }
@@ -129,16 +141,19 @@ async function handleConvert(input: string, options: any): Promise<void> {
       skippedCount++;
       continue;
     }
-    
+
     console.log(chalk.cyan(`Converting: ${file}`));
-    
+
     try {
       // Check metadata for exclusion
       const content = await fs.readFile(file, 'utf-8');
       const { metadata } = parseFrontMatter(content);
-      
+
       if (!shouldConvertDocument(metadata)) {
-        const reason = metadata?.convert === false ? 'convert: false' : `document_type: ${metadata?.document_type}`;
+        const reason =
+          metadata?.convert === false
+            ? 'convert: false'
+            : `document_type: ${metadata?.document_type}`;
         console.log(chalk.grey(`  ⊘ Skipped (${reason})`));
         console.log();
         skippedCount++;
@@ -147,7 +162,7 @@ async function handleConvert(input: string, options: any): Promise<void> {
       // Validate document if validation is enabled
       if (options.validate !== false) {
         const validation = validateDocument(content);
-        
+
         // Display errors
         if (validation.errors.length > 0) {
           console.log(chalk.red(`  ✗ Validation errors:`));
@@ -158,14 +173,14 @@ async function handleConvert(input: string, options: any): Promise<void> {
           console.log();
           continue; // Skip conversion if validation fails
         }
-        
+
         // Display warnings
         if (validation.warnings.length > 0) {
           console.log(chalk.yellow(`  ⚠ Warnings:`));
           validation.warnings.forEach((warning) => {
             console.log(chalk.yellow(`    • ${warning}`));
           });
-          
+
           // Fail on warnings if strict mode
           if (options.strict) {
             errorCount++;
@@ -173,32 +188,42 @@ async function handleConvert(input: string, options: any): Promise<void> {
             continue;
           }
         }
-        
+
         // Display metadata summary
         if (validation.metadata) {
-          console.log(chalk.grey(`  📄 ${validation.metadata.title || 'Untitled'} (${validation.metadata.format})`));
+          console.log(
+            chalk.grey(
+              `  📄 ${validation.metadata.title || 'Untitled'} (${validation.metadata.format})`
+            )
+          );
           if (validation.metadata.version) {
-            console.log(chalk.grey(`     v${validation.metadata.version} - ${validation.metadata.status || 'draft'}`));
+            console.log(
+              chalk.grey(
+                `     v${validation.metadata.version} - ${validation.metadata.status || 'draft'}`
+              )
+            );
           }
         }
       }
-      
+
       // Determine formats to generate from front matter or CLI option
       const formatsToGenerate = metadata ? getFormats(metadata) : formats;
-      
+
       for (const fmt of formatsToGenerate) {
         const outputPath = await getOutputPath(file, fmt, options);
-        
+
         await convertFile(file, outputPath, fmt, options);
-        
+
         console.log(chalk.green(`  ✓ ${fmt.toUpperCase()}: ${outputPath}`));
         successCount++;
       }
     } catch (error) {
-      console.error(chalk.red(`  ✗ Error: ${error instanceof Error ? error.message : String(error)}`));
+      console.error(
+        chalk.red(`  ✗ Error: ${error instanceof Error ? error.message : String(error)}`)
+      );
       errorCount++;
     }
-    
+
     console.log();
   }
 
@@ -236,7 +261,7 @@ async function handlePreview(input: string): Promise<void> {
     console.log(chalk.grey(`  Headers: ${table.headers.join(', ')}`));
     console.log(chalk.grey(`  Rows: ${table.rows.length}`));
     console.log(chalk.grey(`  Columns: ${table.headers.length}`));
-    
+
     if (formulas.length > 0) {
       console.log(chalk.green(`  Formulas: ${formulas.length}`));
       formulas.forEach((formula, idx) => {
@@ -245,7 +270,7 @@ async function handlePreview(input: string): Promise<void> {
     } else {
       console.log(chalk.grey(`  Formulas: None`));
     }
-    
+
     console.log();
   }
 }
@@ -272,7 +297,7 @@ async function handleValidate(input: string): Promise<void> {
 
     if (formulas.length > 0) {
       console.log(chalk.cyan(`Table ${i + 1}:`));
-      
+
       for (const formula of formulas) {
         totalFormulas++;
         const validation = validateFormula(formula);
@@ -280,7 +305,7 @@ async function handleValidate(input: string): Promise<void> {
         if (validation.isValid) {
           validFormulas++;
           console.log(chalk.green(`  ✓ ${formula}`));
-          
+
           if (validation.warnings.length > 0) {
             validation.warnings.forEach((warning) => {
               console.log(chalk.yellow(`    ⚠ ${warning}`));
@@ -289,13 +314,13 @@ async function handleValidate(input: string): Promise<void> {
         } else {
           invalidFormulas++;
           console.log(chalk.red(`  ✗ ${formula}`));
-          
+
           validation.errors.forEach((error) => {
             console.log(chalk.red(`    ✗ ${error}`));
           });
         }
       }
-      
+
       console.log();
     }
   }
@@ -333,11 +358,7 @@ async function findInputFiles(pattern: string): Promise<string[]> {
 /**
  * Get output path for a file
  */
-async function getOutputPath(
-  inputPath: string,
-  format: string,
-  options: any
-): Promise<string> {
+async function getOutputPath(inputPath: string, format: string, options: any): Promise<string> {
   if (options.output && !options.outputDir) {
     // Single file output specified
     return options.output;
@@ -371,17 +392,50 @@ async function convertFile(
     case 'docx':
       await convertToDocx(inputPath, outputPath, conversionOptions);
       break;
-    
+
     case 'xlsx':
       await convertToXlsx(inputPath, outputPath, conversionOptions);
       break;
-    
+
     case 'pptx':
       await convertToPptx(inputPath, outputPath, conversionOptions);
       break;
-    
+
     default:
       throw new Error(`Unsupported format: ${format}`);
   }
 }
 
+/**
+ * Handle errors with context-specific messages and formatting
+ */
+function handleError(error: unknown): void {
+  if (error instanceof FormulaValidationError) {
+    console.error(chalk.red('Formula Error:'), error.message);
+    console.error(chalk.yellow('  Formula:'), error.formula);
+    console.error(chalk.yellow('  Reason:'), error.reason);
+    console.error(chalk.grey('  Tip: Check your formula syntax. Common issues include mismatched parentheses and unknown functions.'));
+  } else if (error instanceof FrontMatterError) {
+    console.error(chalk.red('Front Matter Error:'), error.message);
+    if (error.field) {
+      console.error(chalk.yellow('  Field:'), error.field);
+    }
+    console.error(chalk.grey('  Tip: Ensure your YAML front matter is valid and includes required fields (format, title).'));
+  } else if (error instanceof ConversionError) {
+    console.error(chalk.red('Conversion Error:'), error.message);
+    console.error(chalk.yellow('  Format:'), error.format);
+    console.error(chalk.yellow('  Source:'), error.source);
+    console.error(chalk.grey('  Tip: Check that the source file exists and contains valid markdown.'));
+  } else if (error instanceof ValidationError) {
+    console.error(chalk.red('Validation Error:'), error.message);
+    console.error(chalk.yellow('  Rule:'), error.rule);
+    if (error.location) {
+      console.error(chalk.yellow('  Location:'), error.location);
+    }
+    console.error(chalk.grey('  Tip: Review your document structure. Use --no-validate to skip validation.'));
+  } else if (error instanceof ConverterError) {
+    console.error(chalk.red('Error:'), error.message);
+  } else {
+    console.error(chalk.red('Error:'), error instanceof Error ? error.message : String(error));
+  }
+}

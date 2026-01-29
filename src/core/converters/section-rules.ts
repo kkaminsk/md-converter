@@ -15,33 +15,33 @@ export function shouldCreateSectionBreak(
   metadata: DocumentMetadata | null
 ): boolean {
   const sectionBreakMode = metadata?.section_breaks || 'auto';
-  
+
   // Override modes
   if (sectionBreakMode === 'all') {
     return true;
   }
-  
+
   if (sectionBreakMode === 'none') {
     return false;
   }
-  
+
   // Auto mode: Only create section break if HR is followed by ## (Heading 2)
   if (sectionBreakMode === 'auto') {
     // Look at the next block after the HR
     const nextBlock = content[hrIndex + 1];
-    
+
     if (!nextBlock) {
       return false; // HR at end of document
     }
-    
+
     // Section break only if followed by H2 (major section boundary)
     if (nextBlock.type === 'heading' && nextBlock.level === 2) {
       return true;
     }
-    
+
     return false;
   }
-  
+
   return false;
 }
 
@@ -53,20 +53,20 @@ export function shouldCreateSlideBreak(
   metadata: DocumentMetadata | null
 ): boolean {
   const slideBreakMode = metadata?.slide_breaks || 'h2';
-  
+
   switch (slideBreakMode) {
     case 'h1':
       // New slide at every H1
       return block.type === 'heading' && block.level === 1;
-    
+
     case 'h2':
       // New slide at every H2 (and H1)
       return block.type === 'heading' && (block.level === 1 || block.level === 2);
-    
+
     case 'hr':
       // New slide at every horizontal rule
       return block.type === 'hr';
-    
+
     default:
       return false;
   }
@@ -77,7 +77,7 @@ export function shouldCreateSlideBreak(
  */
 export function getSectionBreakType(metadata: DocumentMetadata | null): string {
   const mode = metadata?.section_breaks || 'auto';
-  
+
   switch (mode) {
     case 'all':
       return 'All HRs create sections';
@@ -95,7 +95,7 @@ export function getSectionBreakType(metadata: DocumentMetadata | null): string {
  */
 export function getSlideBreakType(metadata: DocumentMetadata | null): string {
   const mode = metadata?.slide_breaks || 'h2';
-  
+
   switch (mode) {
     case 'h1':
       return 'New slide at each H1';
@@ -116,17 +116,17 @@ export function countExpectedSections(
   metadata: DocumentMetadata | null
 ): number {
   let sectionCount = 1; // Always at least one section
-  
+
   for (let i = 0; i < content.length; i++) {
     const block = content[i];
-    
+
     if (block.type === 'hr') {
       if (shouldCreateSectionBreak(i, content, metadata)) {
         sectionCount++;
       }
     }
   }
-  
+
   return sectionCount;
 }
 
@@ -138,13 +138,12 @@ export function countExpectedSlides(
   metadata: DocumentMetadata | null
 ): number {
   let slideCount = 1; // Always at least one slide
-  
+
   for (const block of content) {
     if (shouldCreateSlideBreak(block, metadata)) {
       slideCount++;
     }
   }
-  
+
   return slideCount;
 }
-

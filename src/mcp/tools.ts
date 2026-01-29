@@ -18,7 +18,8 @@ export const TOOLS: Tool[] = [
         },
         output_path: {
           type: 'string',
-          description: 'Optional output path for the DOCX file. If not specified, uses the same name as input with .docx extension',
+          description:
+            'Optional output path for the DOCX file. If not specified, uses the same name as input with .docx extension',
         },
         options: {
           type: 'object',
@@ -40,7 +41,8 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'convert_md_to_xlsx',
-    description: 'Convert Markdown tables to XLSX (Excel) format with formula support. Formulas in tables using {=FORMULA} syntax will be converted to actual Excel formulas',
+    description:
+      'Convert Markdown tables to XLSX (Excel) format with formula support. Formulas in tables using {=FORMULA} syntax will be converted to actual Excel formulas',
     inputSchema: {
       type: 'object',
       properties: {
@@ -50,7 +52,8 @@ export const TOOLS: Tool[] = [
         },
         output_path: {
           type: 'string',
-          description: 'Optional output path for the XLSX file. If not specified, uses the same name as input with .xlsx extension',
+          description:
+            'Optional output path for the XLSX file. If not specified, uses the same name as input with .xlsx extension',
         },
         options: {
           type: 'object',
@@ -72,7 +75,8 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'convert_md_to_pptx',
-    description: 'Convert Markdown to PPTX (PowerPoint) presentation. H1=Title slide, H2=Section header, H3=Content slide. Use --- (horizontal rule) to separate slides',
+    description:
+      'Convert Markdown to PPTX (PowerPoint) presentation. H1=Title slide, H2=Section header, H3=Content slide. Use --- (horizontal rule) to separate slides',
     inputSchema: {
       type: 'object',
       properties: {
@@ -82,7 +86,8 @@ export const TOOLS: Tool[] = [
         },
         output_path: {
           type: 'string',
-          description: 'Optional output path for the PPTX file. If not specified, uses the same name as input with .pptx extension',
+          description:
+            'Optional output path for the PPTX file. If not specified, uses the same name as input with .pptx extension',
         },
         options: {
           type: 'object',
@@ -105,7 +110,8 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'preview_tables',
-    description: 'Preview table extraction from a Markdown file, showing headers, row/column counts, and formula locations',
+    description:
+      'Preview table extraction from a Markdown file, showing headers, row/column counts, and formula locations',
     inputSchema: {
       type: 'object',
       properties: {
@@ -119,7 +125,8 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'validate_formulas',
-    description: 'Validate all formulas in a Markdown file, checking syntax and Excel function names',
+    description:
+      'Validate all formulas in a Markdown file, checking syntax and Excel function names',
     inputSchema: {
       type: 'object',
       properties: {
@@ -132,4 +139,3 @@ export const TOOLS: Tool[] = [
     },
   },
 ];
-

@@ -236,6 +236,33 @@ title: "Project Initiation Email"
 
 ## Format-Specific Fields
 
+### XLSX: `date_format` (string)
+
+**Purpose:** Controls how dates in table cells are parsed and displayed in Excel.
+
+**Valid Values:**
+
+- `DD/MM/YYYY` (default) - Australian/UK format
+  - "25/12/2025" is parsed as December 25, 2025
+  - Excel displays dates as dd/mm/yyyy
+
+- `MM/DD/YYYY` - US format
+  - "12/25/2025" is parsed as December 25, 2025
+  - Excel displays dates as mm/dd/yyyy
+
+- `YYYY-MM-DD` - ISO format
+  - "2025-12-25" is parsed as December 25, 2025
+  - Excel displays dates as yyyy-mm-dd
+
+**Example:**
+```yaml
+date_format: MM/DD/YYYY
+```
+
+**Important:** The date format affects both parsing (how date strings in tables are interpreted) and display (how dates appear in Excel). For example, "01/02/2025" is interpreted as:
+- **DD/MM/YYYY:** February 1, 2025
+- **MM/DD/YYYY:** January 2, 2025
+
 ### DOCX: `section_breaks` (string)
 
 **Purpose:** Controls how horizontal rules (`---`) are handled in Word documents.
@@ -305,6 +332,7 @@ description: "Executive decision brief presenting three delivery options for DCC
 keywords: ["AI", "capability", "DCCEEW", "executive brief", "decision"]
 subject: "Executive Briefing"
 section_breaks: auto
+date_format: DD/MM/YYYY
 ---
 ```
 

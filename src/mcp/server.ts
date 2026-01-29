@@ -20,6 +20,13 @@ import { parseMarkdown } from '../core/parsers/markdown.js';
 import { processTable, extractFormulas } from '../core/parsers/table-parser.js';
 import { validateFormula } from '../core/parsers/formula-parser.js';
 import { TOOLS } from './tools.js';
+import {
+  ConverterError,
+  FormulaValidationError,
+  FrontMatterError,
+  ConversionError,
+  ValidationError,
+} from '../core/errors.js';
 
 /**
  * Start the MCP server
@@ -53,45 +60,37 @@ export async function startMcpServer(): Promise<void> {
       switch (name) {
         case 'convert_md_to_docx':
           return await handleConvertToDocx(args);
-        
+
         case 'convert_md_to_xlsx':
           return await handleConvertToXlsx(args);
-        
+
         case 'convert_md_to_pptx':
           return await handleConvertToPptx(args);
-        
+
         case 'preview_tables':
           return await handlePreviewTables(args);
-        
+
         case 'validate_formulas':
           return await handleValidateFormulas(args);
-        
+
         default:
           throw new Error(`Unknown tool: ${name}`);
       }
     } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-        isError: true,
-      };
+      return formatMcpError(error);
     }
   });
 
   // List available resources
   server.setRequestHandler(ListResourcesRequestSchema, async () => {
     const examplesDir = path.join(process.cwd(), 'examples');
-    
+
     try {
       const files = await fs.readdir(examplesDir);
-      const mdFiles = files.filter(f => f.endsWith('.md'));
-      
+      const mdFiles = files.filter((f) => f.endsWith('.md'));
+
       return {
-        resources: mdFiles.map(file => ({
+        resources: mdFiles.map((file) => ({
           uri: `example://${file}`,
           name: file,
           description: `Example Markdown file: ${file}`,
@@ -106,11 +105,11 @@ export async function startMcpServer(): Promise<void> {
   // Read resources
   server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     const { uri } = request.params;
-    
+
     if (uri.startsWith('example://')) {
       const filename = uri.replace('example://', '');
       const filepath = path.join(process.cwd(), 'examples', filename);
-      
+
       try {
         const content = await fs.readFile(filepath, 'utf-8');
         return {
@@ -123,18 +122,77 @@ export async function startMcpServer(): Promise<void> {
           ],
         };
       } catch (error) {
-        throw new Error(`Failed to read resource: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to read resource: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
-    
+
     throw new Error(`Unknown resource URI: ${uri}`);
   });
 
   // Start server with stdio transport
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  
+
   console.error('MD Converter MCP server running on stdio');
+}
+
+/**
+ * Format error for MCP response with structured information
+ */
+function formatMcpError(error: unknown) {
+  let errorType = 'Error';
+  let errorDetails: Record<string, unknown> = {};
+
+  if (error instanceof FormulaValidationError) {
+    errorType = 'FormulaValidationError';
+    errorDetails = {
+      formula: error.formula,
+      reason: error.reason,
+    };
+  } else if (error instanceof FrontMatterError) {
+    errorType = 'FrontMatterError';
+    errorDetails = {
+      field: error.field,
+      value: error.value,
+    };
+  } else if (error instanceof ConversionError) {
+    errorType = 'ConversionError';
+    errorDetails = {
+      format: error.format,
+      source: error.source,
+    };
+  } else if (error instanceof ValidationError) {
+    errorType = 'ValidationError';
+    errorDetails = {
+      rule: error.rule,
+      location: error.location,
+    };
+  } else if (error instanceof ConverterError) {
+    errorType = 'ConverterError';
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify(
+          {
+            error: true,
+            errorType,
+            message,
+            details: Object.keys(errorDetails).length > 0 ? errorDetails : undefined,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+    isError: true,
+  };
 }
 
 /**
@@ -142,18 +200,22 @@ export async function startMcpServer(): Promise<void> {
  */
 async function handleConvertToDocx(args: any) {
   const { file_path, output_path, options = {} } = args;
-  
+
   const result = await convertToDocx(file_path, output_path, options);
-  
+
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({
-          success: result.success,
-          outputPath: result.outputPath,
-          warnings: result.warnings,
-        }, null, 2),
+        text: JSON.stringify(
+          {
+            success: result.success,
+            outputPath: result.outputPath,
+            warnings: result.warnings,
+          },
+          null,
+          2
+        ),
       },
     ],
   };
@@ -164,21 +226,25 @@ async function handleConvertToDocx(args: any) {
  */
 async function handleConvertToXlsx(args: any) {
   const { file_path, output_path, options = {} } = args;
-  
+
   const result = await convertToXlsx(file_path, output_path, options);
-  
+
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({
-          success: result.success,
-          outputPath: result.outputPath,
-          worksheetNames: result.worksheetNames,
-          tableCount: result.tableCount,
-          formulaCount: result.formulaCount,
-          warnings: result.warnings,
-        }, null, 2),
+        text: JSON.stringify(
+          {
+            success: result.success,
+            outputPath: result.outputPath,
+            worksheetNames: result.worksheetNames,
+            tableCount: result.tableCount,
+            formulaCount: result.formulaCount,
+            warnings: result.warnings,
+          },
+          null,
+          2
+        ),
       },
     ],
   };
@@ -189,19 +255,23 @@ async function handleConvertToXlsx(args: any) {
  */
 async function handleConvertToPptx(args: any) {
   const { file_path, output_path, options = {} } = args;
-  
+
   const result = await convertToPptx(file_path, output_path, options);
-  
+
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({
-          success: result.success,
-          outputPath: result.outputPath,
-          slideCount: result.slideCount,
-          warnings: result.warnings,
-        }, null, 2),
+        text: JSON.stringify(
+          {
+            success: result.success,
+            outputPath: result.outputPath,
+            slideCount: result.slideCount,
+            warnings: result.warnings,
+          },
+          null,
+          2
+        ),
       },
     ],
   };
@@ -212,10 +282,10 @@ async function handleConvertToPptx(args: any) {
  */
 async function handlePreviewTables(args: any) {
   const { file_path } = args;
-  
+
   const content = await fs.readFile(file_path, 'utf-8');
   const parsed = parseMarkdown(content);
-  
+
   const previews = parsed.tables.map((table, index) => {
     const preview = previewTableConversion(table);
     return {
@@ -223,15 +293,19 @@ async function handlePreviewTables(args: any) {
       ...preview,
     };
   });
-  
+
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({
-          tableCount: parsed.tables.length,
-          tables: previews,
-        }, null, 2),
+        text: JSON.stringify(
+          {
+            tableCount: parsed.tables.length,
+            tables: previews,
+          },
+          null,
+          2
+        ),
       },
     ],
   };
@@ -242,30 +316,30 @@ async function handlePreviewTables(args: any) {
  */
 async function handleValidateFormulas(args: any) {
   const { file_path } = args;
-  
+
   const content = await fs.readFile(file_path, 'utf-8');
   const parsed = parseMarkdown(content);
-  
+
   const validations: any[] = [];
   let totalFormulas = 0;
   let validCount = 0;
   let invalidCount = 0;
-  
+
   for (let i = 0; i < parsed.tables.length; i++) {
     const table = parsed.tables[i];
     const processed = processTable(table);
     const formulas = extractFormulas(processed);
-    
+
     for (const formula of formulas) {
       totalFormulas++;
       const validation = validateFormula(formula);
-      
+
       if (validation.isValid) {
         validCount++;
       } else {
         invalidCount++;
       }
-      
+
       validations.push({
         tableNumber: i + 1,
         formula,
@@ -277,21 +351,24 @@ async function handleValidateFormulas(args: any) {
       });
     }
   }
-  
+
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({
-          summary: {
-            totalFormulas,
-            validCount,
-            invalidCount,
+        text: JSON.stringify(
+          {
+            summary: {
+              totalFormulas,
+              validCount,
+              invalidCount,
+            },
+            validations,
           },
-          validations,
-        }, null, 2),
+          null,
+          2
+        ),
       },
     ],
   };
 }
-

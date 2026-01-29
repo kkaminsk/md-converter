@@ -76,3 +76,27 @@ MD Converter is a TypeScript tool that converts Markdown files to Microsoft Offi
 - All processing is local/offline
 - MCP server communicates via STDIO for AI assistant integration
 - Output files written to local filesystem
+
+## Current Status (as of 2026-01-28)
+
+**Version:** 2.1.0
+**Health Score:** 7.4/10
+
+### Strengths
+- Well-architected with clear separation of concerns
+- Modern TypeScript (ES2022, strict mode, ESM)
+- Dependencies are current (no outdated packages)
+- Excellent documentation (CLAUDE.md, FRONTMATTER.md)
+- Metadata-driven conversion pipeline
+
+### Known Issues
+- **Zero test coverage** - No Jest tests despite test script in package.json
+- **Type safety bypassed** - `@ts-nocheck` in docx-converter.ts and pptx-converter.ts
+- **No linting** - ESLint/Prettier not configured
+- **Simple regex parsing** - Inline markdown uses regex instead of token-based parsing
+- **Generic errors** - No custom error classes for specific failure types
+- **Hardcoded date format** - Only DD/MM/YYYY supported
+
+### Pending Feature Work (v2.2.0)
+- Image support in all formats
+- Table of Contents generation

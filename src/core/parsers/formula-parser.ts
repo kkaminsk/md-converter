@@ -3,6 +3,8 @@
  * Parse and validate Excel formulas
  */
 
+import { FormulaValidationError } from '../errors.js';
+
 export interface FormulaValidation {
   isValid: boolean;
   formula: string;
@@ -15,30 +17,92 @@ export interface FormulaValidation {
 // Common Excel functions whitelist
 const EXCEL_FUNCTIONS = [
   // Math functions
-  'SUM', 'AVERAGE', 'COUNT', 'COUNTA', 'COUNTIF', 'COUNTIFS',
-  'MIN', 'MAX', 'ROUND', 'ROUNDUP', 'ROUNDDOWN', 'INT', 'ABS',
-  'SQRT', 'POWER', 'MOD', 'PRODUCT', 'SUMIF', 'SUMIFS',
-  'AVERAGEIF', 'AVERAGEIFS', 'MEDIAN', 'MODE',
-  
+  'SUM',
+  'AVERAGE',
+  'COUNT',
+  'COUNTA',
+  'COUNTIF',
+  'COUNTIFS',
+  'MIN',
+  'MAX',
+  'ROUND',
+  'ROUNDUP',
+  'ROUNDDOWN',
+  'INT',
+  'ABS',
+  'SQRT',
+  'POWER',
+  'MOD',
+  'PRODUCT',
+  'SUMIF',
+  'SUMIFS',
+  'AVERAGEIF',
+  'AVERAGEIFS',
+  'MEDIAN',
+  'MODE',
+
   // Logical functions
-  'IF', 'AND', 'OR', 'NOT', 'XOR', 'TRUE', 'FALSE', 'IFERROR', 'IFNA',
-  
+  'IF',
+  'AND',
+  'OR',
+  'NOT',
+  'XOR',
+  'TRUE',
+  'FALSE',
+  'IFERROR',
+  'IFNA',
+
   // Text functions
-  'CONCATENATE', 'CONCAT', 'LEFT', 'RIGHT', 'MID', 'LEN', 'TRIM',
-  'UPPER', 'LOWER', 'PROPER', 'SUBSTITUTE', 'REPLACE', 'TEXT',
-  
+  'CONCATENATE',
+  'CONCAT',
+  'LEFT',
+  'RIGHT',
+  'MID',
+  'LEN',
+  'TRIM',
+  'UPPER',
+  'LOWER',
+  'PROPER',
+  'SUBSTITUTE',
+  'REPLACE',
+  'TEXT',
+
   // Date functions
-  'TODAY', 'NOW', 'DATE', 'YEAR', 'MONTH', 'DAY', 'WEEKDAY',
-  'DATEDIF', 'DAYS', 'NETWORKDAYS', 'EOMONTH',
-  
+  'TODAY',
+  'NOW',
+  'DATE',
+  'YEAR',
+  'MONTH',
+  'DAY',
+  'WEEKDAY',
+  'DATEDIF',
+  'DAYS',
+  'NETWORKDAYS',
+  'EOMONTH',
+
   // Lookup functions
-  'VLOOKUP', 'HLOOKUP', 'XLOOKUP', 'INDEX', 'MATCH', 'CHOOSE',
-  
+  'VLOOKUP',
+  'HLOOKUP',
+  'XLOOKUP',
+  'INDEX',
+  'MATCH',
+  'CHOOSE',
+
   // Statistical functions
-  'STDEV', 'STDEVP', 'VAR', 'VARP', 'RANK', 'PERCENTILE',
-  
+  'STDEV',
+  'STDEVP',
+  'VAR',
+  'VARP',
+  'RANK',
+  'PERCENTILE',
+
   // Financial functions
-  'PMT', 'FV', 'PV', 'RATE', 'NPV', 'IRR',
+  'PMT',
+  'FV',
+  'PV',
+  'RATE',
+  'NPV',
+  'IRR',
 ];
 
 const CELL_REFERENCE_PATTERN = /\$?[A-Z]+\$?\d+/g;
@@ -124,6 +188,17 @@ export function validateFormula(formula: string): FormulaValidation {
 }
 
 /**
+ * Validate a formula and throw FormulaValidationError if invalid
+ */
+export function validateFormulaStrict(formula: string): FormulaValidation {
+  const result = parseFormula(formula);
+  if (!result.isValid) {
+    throw new FormulaValidationError(formula, result.errors.join('; '));
+  }
+  return result;
+}
+
+/**
  * Check if a string contains a formula pattern
  */
 export function isFormula(value: string): boolean {
@@ -155,7 +230,7 @@ export function isValidRangeReference(ref: string): boolean {
   const cellRange = /^\$?[A-Z]+\$?\d+:\$?[A-Z]+\$?\d+$/;
   const columnRange = /^\$?[A-Z]+:\$?[A-Z]+$/;
   const rowRange = /^\$?\d+:\$?\d+$/;
-  
+
   return cellRange.test(ref) || columnRange.test(ref) || rowRange.test(ref);
 }
 
@@ -210,10 +285,7 @@ export function getAllReferences(formula: string): string[] {
 /**
  * Check if formula contains circular references (basic check)
  */
-export function hasCircularReference(
-  formula: string,
-  currentCell: string
-): boolean {
+export function hasCircularReference(formula: string, currentCell: string): boolean {
   const references = getAllReferences(formula);
   return references.includes(currentCell);
 }
@@ -224,26 +296,22 @@ export function hasCircularReference(
 export function sanitiseFormula(formula: string): string {
   // Remove any potentially dangerous characters
   let cleaned = formula.trim();
-  
+
   // Remove leading = if present
   if (cleaned.startsWith('=')) {
     cleaned = cleaned.substring(1);
   }
-  
+
   // Remove any script tags or HTML
   cleaned = cleaned.replace(/<[^>]*>/g, '');
-  
+
   return cleaned;
 }
 
 /**
  * Convert relative references to absolute based on offset
  */
-export function adjustReferences(
-  formula: string,
-  rowOffset: number,
-  colOffset: number
-): string {
+export function adjustReferences(formula: string, rowOffset: number, colOffset: number): string {
   let adjusted = formula;
 
   // Find all cell references
@@ -270,12 +338,7 @@ export function adjustReferences(
       newRow = parsed.row + rowOffset;
     }
 
-    const newRef = formatCellReference(
-      newCol,
-      newRow,
-      parsed.absoluteColumn,
-      parsed.absoluteRow
-    );
+    const newRef = formatCellReference(newCol, newRow, parsed.absoluteColumn, parsed.absoluteRow);
 
     adjusted = adjusted.replace(ref, newRef);
   }
@@ -309,4 +372,3 @@ function indexToColumn(index: number): string {
 
   return column;
 }
-

@@ -5,6 +5,8 @@
 
 import type { TableData } from './markdown.js';
 
+export type DateFormat = 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
+
 export interface ProcessedTable {
   headers: string[];
   rows: ProcessedRow[];
@@ -29,22 +31,24 @@ const FORMULA_PATTERN = /\{=([^}]+)\}/g;
 
 /**
  * Process a table and detect formulas
+ * @param table The table data to process
+ * @param dateFormat The date format to use for parsing dates (default: DD/MM/YYYY)
  */
-export function processTable(table: TableData): ProcessedTable {
+export function processTable(table: TableData, dateFormat: DateFormat = 'DD/MM/YYYY'): ProcessedTable {
   const processedRows: ProcessedRow[] = [];
   let hasFormulas = false;
 
   for (const row of table.rows) {
     const processedCells: ProcessedCell[] = [];
-    
+
     for (const cellValue of row) {
-      const processed = processCell(cellValue);
+      const processed = processCell(cellValue, dateFormat);
       if (processed.isFormula) {
         hasFormulas = true;
       }
       processedCells.push(processed);
     }
-    
+
     processedRows.push({ cells: processedCells });
   }
 
@@ -57,8 +61,10 @@ export function processTable(table: TableData): ProcessedTable {
 
 /**
  * Process a single cell and detect its type
+ * @param value The cell value to process
+ * @param dateFormat The date format to use for parsing dates (default: DD/MM/YYYY)
  */
-export function processCell(value: string): ProcessedCell {
+export function processCell(value: string, dateFormat: DateFormat = 'DD/MM/YYYY'): ProcessedCell {
   const trimmedValue = value.trim();
 
   // Check for formula
@@ -96,8 +102,8 @@ export function processCell(value: string): ProcessedCell {
     };
   }
 
-  // Check for date (DD/MM/YYYY format - Australian)
-  const dateValue = parseAustralianDate(trimmedValue);
+  // Check for date based on configured format
+  const dateValue = parseDate(trimmedValue, dateFormat);
   if (dateValue) {
     return {
       rawValue: value,
@@ -132,33 +138,53 @@ function parseNumeric(value: string): number | null {
     return null;
   }
 
+  // Ensure the entire string is a valid number (not partial like "28/01/2025" -> 28)
+  // Only match numbers that consist entirely of digits, optional decimal, and optional sign
+  if (!/^-?\d+(\.\d+)?$/.test(cleaned)) {
+    return null;
+  }
+
   const parsed = parseFloat(cleaned);
   return isNaN(parsed) ? null : parsed;
 }
 
 /**
- * Parse Australian date format (DD/MM/YYYY)
+ * Parse date according to the specified format
+ * @param value The date string to parse
+ * @param format The date format to use for parsing
  */
-function parseAustralianDate(value: string): Date | null {
-  const datePattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
-  const match = value.match(datePattern);
+function parseDate(value: string, format: DateFormat): Date | null {
+  let day: number, month: number, year: number;
 
-  if (!match) {
-    return null;
+  if (format === 'YYYY-MM-DD') {
+    // ISO format: YYYY-MM-DD
+    const isoPattern = /^(\d{4})-(\d{2})-(\d{2})$/;
+    const match = value.match(isoPattern);
+    if (!match) return null;
+    year = parseInt(match[1], 10);
+    month = parseInt(match[2], 10) - 1; // JS months are 0-indexed
+    day = parseInt(match[3], 10);
+  } else {
+    // Slash-separated formats: DD/MM/YYYY or MM/DD/YYYY
+    const slashPattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+    const match = value.match(slashPattern);
+    if (!match) return null;
+
+    if (format === 'DD/MM/YYYY') {
+      day = parseInt(match[1], 10);
+      month = parseInt(match[2], 10) - 1; // JS months are 0-indexed
+    } else {
+      // MM/DD/YYYY
+      month = parseInt(match[1], 10) - 1; // JS months are 0-indexed
+      day = parseInt(match[2], 10);
+    }
+    year = parseInt(match[3], 10);
   }
-
-  const day = parseInt(match[1], 10);
-  const month = parseInt(match[2], 10) - 1; // JS months are 0-indexed
-  const year = parseInt(match[3], 10);
 
   const date = new Date(year, month, day);
 
-  // Validate the date is valid
-  if (
-    date.getFullYear() === year &&
-    date.getMonth() === month &&
-    date.getDate() === day
-  ) {
+  // Validate the date is valid (catches invalid dates like Feb 30)
+  if (date.getFullYear() === year && date.getMonth() === month && date.getDate() === day) {
     return date;
   }
 
@@ -219,11 +245,10 @@ export function columnIndexToLetter(index: number): string {
  */
 export function columnLetterToIndex(letter: string): number {
   let index = 0;
-  
+
   for (let i = 0; i < letter.length; i++) {
     index = index * 26 + (letter.charCodeAt(i) - 64);
   }
-  
+
   return index - 1;
 }
-

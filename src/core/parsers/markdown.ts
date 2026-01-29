@@ -117,11 +117,11 @@ export function extractHeadings(tokens: Token[]): HeadingData[] {
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
-    
+
     if (token.type === 'heading_open') {
       const level = parseInt(token.tag.substring(1), 10); // h1 -> 1, h2 -> 2, etc.
       const nextToken = tokens[i + 1];
-      
+
       if (nextToken && nextToken.type === 'inline') {
         headings.push({
           level,
@@ -173,7 +173,11 @@ export function extractContent(tokens: Token[]): ContentBlock[] {
         ordered: token.type === 'ordered_list_open',
       });
       // Skip all list tokens
-      while (i < tokens.length && tokens[i].type !== 'bullet_list_close' && tokens[i].type !== 'ordered_list_close') {
+      while (
+        i < tokens.length &&
+        tokens[i].type !== 'bullet_list_close' &&
+        tokens[i].type !== 'ordered_list_close'
+      ) {
         i++;
       }
       i++; // Skip the close token
@@ -220,7 +224,7 @@ function extractListItems(tokens: Token[], startIndex: number): string[] {
 
   while (i < tokens.length) {
     const token = tokens[i];
-    
+
     if (token.type === 'list_item_open') {
       // Look for inline content in the list item
       const inlineToken = tokens[i + 2]; // list_item_open, paragraph_open, inline
@@ -230,7 +234,7 @@ function extractListItems(tokens: Token[], startIndex: number): string[] {
     } else if (token.type === 'bullet_list_close' || token.type === 'ordered_list_close') {
       break;
     }
-    
+
     i++;
   }
 
@@ -241,7 +245,7 @@ function extractListItems(tokens: Token[], startIndex: number): string[] {
  * Extract a single table starting at a specific token index
  */
 function extractSingleTable(tokens: Token[], startIndex: number): TableData | null {
-  let currentTable: Partial<TableData> = {
+  const currentTable: Partial<TableData> = {
     headers: [],
     rows: [],
   };
@@ -288,7 +292,7 @@ function extractSingleTable(tokens: Token[], startIndex: number): TableData | nu
  * Check if content contains horizontal rule (slide separator for PPTX)
  */
 export function hasHorizontalRules(tokens: Token[]): boolean {
-  return tokens.some(token => token.type === 'hr');
+  return tokens.some((token) => token.type === 'hr');
 }
 
 /**
@@ -315,4 +319,3 @@ export function splitByHorizontalRules(tokens: Token[]): Token[][] {
 
   return slides;
 }
-

@@ -63,6 +63,14 @@ npm run serve
 
 # Type check without building
 npm run type-check
+
+# Lint code
+npm run lint          # Check for issues
+npm run lint:fix      # Auto-fix issues
+
+# Format code
+npm run format        # Format all files
+npm run format:check  # Check formatting
 ```
 
 ## CLI Usage
@@ -101,6 +109,7 @@ version: "1.0"
 status: final                   # draft|review|approved|final
 section_breaks: auto            # auto|all|none (DOCX only)
 slide_breaks: h2                # h1|h2|hr (PPTX only)
+date_format: DD/MM/YYYY         # DD/MM/YYYY|MM/DD/YYYY|YYYY-MM-DD (XLSX tables)
 convert: false                  # Skip this file in batch conversion
 document_type: reference        # document|email|reference|note|system
 ---

@@ -8,6 +8,13 @@ export { parseFormula, validateFormula } from './core/parsers/formula-parser.js'
 export { convertToDocx } from './core/converters/docx-converter.js';
 export { convertToXlsx } from './core/converters/xlsx-converter.js';
 export { convertToPptx } from './core/converters/pptx-converter.js';
+export {
+  ConverterError,
+  FormulaValidationError,
+  FrontMatterError,
+  ConversionError,
+  ValidationError,
+} from './core/errors.js';
 
 export interface ConversionOptions {
   freezeHeaders?: boolean;
@@ -22,4 +29,3 @@ export interface ConversionResult {
   message?: string;
   metadata?: Record<string, unknown>;
 }
-
