@@ -7,7 +7,7 @@ import ExcelJS from 'exceljs';
 import { parseMarkdown, type TableData } from '../parsers/markdown.js';
 import { processTable, type ProcessedTable, type DateFormat } from '../parsers/table-parser.js';
 import { validateFormula } from '../parsers/formula-parser.js';
-import { parseFrontMatter } from '../parsers/frontmatter-parser.js';
+import { PreProcessor } from '../pandoc/pre-processor.js';
 import { ConversionError } from '../errors.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -48,26 +48,50 @@ export async function convertToXlsx(
 ): Promise<XlsxConversionResult> {
   try {
     // Read markdown file
-    const rawMarkdown = await fs.readFile(inputPath, 'utf-8');
-
-    // Parse front matter
-    const {
-      metadata,
-      content: markdownContent,
-      warnings: fmWarnings,
-    } = parseFrontMatter(rawMarkdown);
-
-    // Parse markdown
-    const parsed = parseMarkdown(markdownContent);
-
-    if (parsed.tables.length === 0) {
-      throw new ConversionError('No tables found in the markdown file', 'xlsx', inputPath);
-    }
+    const markdown = await fs.readFile(inputPath, 'utf-8');
 
     // Determine output path
     const output = outputPath || inputPath.replace(/\.md$/, '.xlsx');
 
-    // Create workbook
+    // Ensure output directory exists
+    await fs.mkdir(path.dirname(output), { recursive: true });
+
+    // Delegate to string-based conversion
+    return convertMarkdownToXlsx(markdown, output, options);
+  } catch (error) {
+    if (error instanceof ConversionError) {
+      throw error;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    throw new ConversionError(message, 'xlsx', inputPath);
+  }
+}
+
+/**
+ * Convert markdown string directly to XLSX
+ */
+export async function convertMarkdownToXlsx(
+  markdown: string,
+  outputPath: string,
+  options: XlsxConversionOptions = {}
+): Promise<XlsxConversionResult> {
+  const preProcessor = new PreProcessor();
+
+  try {
+    // 1. Pre-process (extract metadata)
+    const preResult = preProcessor.process(markdown);
+    const { metadata } = preResult.extractedData;
+    const allWarnings = [...preResult.warnings];
+
+    // 2. Parse markdown for tables (using original content, not placeholder version)
+    // We use parseMarkdown on original markdown since table-parser handles {=FORMULA} directly
+    const parsed = parseMarkdown(markdown);
+
+    if (parsed.tables.length === 0) {
+      throw new ConversionError('No tables found in the markdown content', 'xlsx', outputPath);
+    }
+
+    // 3. Create workbook with metadata
     const workbook = new ExcelJS.Workbook();
     workbook.creator = metadata?.author || 'MD Converter';
     workbook.created = new Date();
@@ -78,12 +102,11 @@ export async function convertToXlsx(
 
     const worksheetNames: string[] = [];
     let totalFormulas = 0;
-    const warnings: string[] = [...fmWarnings];
 
     // Get date format from metadata (default to DD/MM/YYYY for backward compatibility)
     const dateFormat: DateFormat = metadata?.date_format || 'DD/MM/YYYY';
 
-    // Process each table
+    // 4. Process each table
     for (let i = 0; i < parsed.tables.length; i++) {
       const table = parsed.tables[i];
       const processedTable = processTable(table, dateFormat);
@@ -94,31 +117,31 @@ export async function convertToXlsx(
       worksheetNames.push(sheetName);
 
       // Add table to worksheet
-      const formulaCount = await addTableToWorksheet(worksheet, processedTable, options, warnings, dateFormat);
+      const formulaCount = await addTableToWorksheet(worksheet, processedTable, options, allWarnings, dateFormat);
 
       totalFormulas += formulaCount;
     }
 
-    // Ensure output directory exists
-    await fs.mkdir(path.dirname(output), { recursive: true });
+    // 5. Ensure output directory exists
+    await fs.mkdir(path.dirname(outputPath), { recursive: true });
 
-    // Save workbook
-    await workbook.xlsx.writeFile(output);
+    // 6. Save workbook
+    await workbook.xlsx.writeFile(outputPath);
 
     return {
       success: true,
-      outputPath: output,
+      outputPath,
       worksheetNames,
       tableCount: parsed.tables.length,
       formulaCount: totalFormulas,
-      warnings,
+      warnings: allWarnings,
     };
   } catch (error) {
     if (error instanceof ConversionError) {
       throw error;
     }
     const message = error instanceof Error ? error.message : String(error);
-    throw new ConversionError(message, 'xlsx', inputPath);
+    throw new ConversionError(message, 'xlsx', outputPath);
   }
 }
 
