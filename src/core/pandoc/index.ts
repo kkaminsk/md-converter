@@ -26,6 +26,9 @@ export type {
   FormulaLocation,
   PreProcessorResult,
   PreProcessorOptions,
+  // Post-processor types
+  PostProcessorOptions,
+  PostProcessorResult,
 } from './types.js';
 
 // Errors
@@ -37,6 +40,7 @@ export {
   PandocFilterError,
   PandocReferenceDocError,
   PreProcessorError,
+  PostProcessorError,
 } from './errors.js';
 
 // Executor
@@ -44,6 +48,9 @@ export { PandocExecutor } from './executor.js';
 
 // Pre-processor
 export { PreProcessor } from './pre-processor.js';
+
+// Post-processor
+export { PostProcessor } from './post-processor.js';
 
 // Filter and template utilities
 export {

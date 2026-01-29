@@ -43,7 +43,10 @@ src/
 │   ├── pandoc/                # Pandoc integration layer
 │   │   ├── executor.ts        # Pandoc process spawning & management
 │   │   ├── pre-processor.ts   # Formula extraction, metadata normalization
-│   │   ├── post-processor.ts  # Formula injection, OOXML patching (planned)
+│   │   ├── post-processor.ts  # Formula injection, OOXML patching
+│   │   ├── xlsx-post.ts       # XLSX formula injection (ExcelJS)
+│   │   ├── docx-post.ts       # DOCX header/properties patching (jszip)
+│   │   ├── pptx-post.ts       # PPTX footer injection (jszip)
 │   │   ├── filters.ts         # Filter/template path resolution
 │   │   ├── types.ts           # TypeScript interfaces
 │   │   ├── errors.ts          # Pandoc-specific error classes
@@ -207,7 +210,7 @@ See `openspec/changes/` for detailed proposals:
 | A - Pandoc Executor Foundation | **Done** | Core process wrapper, error handling |
 | B - Pandoc Pre-Processor | **Done** | Formula extraction, metadata normalization |
 | C - Lua Filters & Templates | **Done** | section-breaks.lua, reference docs |
-| D - Pandoc Post-Processor | Planned | Formula injection, OOXML patching |
+| D - Pandoc Post-Processor | **Done** | Formula injection, OOXML patching |
 | E - DOCX Converter Migration | Planned | Refactor to use Pandoc |
 | F - PPTX Converter Migration | Planned | Refactor to use Pandoc |
 | G - XLSX Hybrid Implementation | Planned | Pandoc AST + ExcelJS |
@@ -282,7 +285,12 @@ When working with Pandoc components:
   - Normalizes metadata (adds `subject` from `classification`, `generator` field)
   - Normalizes line endings (CRLF → LF)
   - Returns `{ content, extractedData: { formulas, metadata, tableCount }, warnings }`
-- `PostProcessor.process()` - Call after Pandoc generates output (planned)
+- `PostProcessor.process(options)` - Call after Pandoc generates output
+  - Injects formulas into XLSX cells (replaces `__FORMULA_*__` placeholders)
+  - Adds classification headers to DOCX documents
+  - Adds classification footers to PPTX slides
+  - Patches document properties (title, author, subject, keywords)
+  - Returns `{ success, outputPath, modifications, warnings }`
 - Filter/template path utilities:
   - `getFilterPath(name)` - Resolve Lua filter path (respects `MD_CONVERTER_FILTERS` env var)
   - `getTemplatePath(name)` - Resolve template path (respects `MD_CONVERTER_TEMPLATES` env var)

@@ -266,3 +266,47 @@ export interface PreProcessorOptions {
   /** Whether to preserve original line endings (default: false) */
   preserveLineEndings?: boolean;
 }
+
+// ============================================================================
+// Post-processor types
+// ============================================================================
+
+/**
+ * Options for post-processing Pandoc output
+ */
+export interface PostProcessorOptions {
+  /** Output format being processed */
+  format: 'docx' | 'pptx' | 'xlsx';
+
+  /** Data extracted during pre-processing */
+  extractedData: {
+    /** Formulas to inject (for XLSX) */
+    formulas: FormulaLocation[];
+
+    /** Document metadata */
+    metadata: DocumentMetadata | null;
+
+    /** Number of tables in document */
+    tableCount: number;
+  };
+
+  /** Path to the file to post-process */
+  outputPath: string;
+}
+
+/**
+ * Result from post-processing
+ */
+export interface PostProcessorResult {
+  /** Whether processing completed without critical errors */
+  success: boolean;
+
+  /** Path to the processed file */
+  outputPath: string;
+
+  /** List of modifications made (for logging/debugging) */
+  modifications: string[];
+
+  /** Non-critical warnings encountered */
+  warnings: string[];
+}

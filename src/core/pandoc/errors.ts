@@ -102,3 +102,18 @@ export class PreProcessorError extends ConverterError {
     this.details = details;
   }
 }
+
+/**
+ * Error thrown when post-processing fails
+ */
+export class PostProcessorError extends ConverterError {
+  readonly format?: string;
+  readonly filePath?: string;
+
+  constructor(message: string, format?: string, filePath?: string) {
+    super(message);
+    this.name = 'PostProcessorError';
+    this.format = format;
+    this.filePath = filePath;
+  }
+}
