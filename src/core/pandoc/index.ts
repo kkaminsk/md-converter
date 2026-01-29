@@ -44,3 +44,17 @@ export { PandocExecutor } from './executor.js';
 
 // Pre-processor
 export { PreProcessor } from './pre-processor.js';
+
+// Filter and template utilities
+export {
+  getFiltersDir,
+  getTemplatesDir,
+  getFilterPath,
+  getTemplatePath,
+  getDefaultsPath,
+  filterExists,
+  templateExists,
+  FILTERS,
+  TEMPLATES,
+  DEFAULTS,
+} from './filters.js';

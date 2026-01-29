@@ -1,0 +1,24 @@
+# Pandoc defaults for DOCX conversion
+# Usage: pandoc input.md --defaults=templates/defaults/docx.yaml -o output.docx
+
+from: markdown+yaml_metadata_block+pipe_tables+grid_tables+strikeout+task_lists
+to: docx
+standalone: true
+
+# Reference document for styling (generate with templates/generate-references.sh)
+# reference-doc: templates/reference.docx
+
+# Lua filters (order matters: metadata-inject first)
+filters:
+  - src/pandoc/filters/metadata-inject.lua
+  - src/pandoc/filters/section-breaks.lua
+
+# Default metadata
+metadata:
+  lang: en-US
+
+# Table of contents (disabled by default)
+toc: false
+
+# Highlight style for code blocks
+highlight-style: tango

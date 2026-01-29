@@ -44,13 +44,15 @@ src/
 │   │   ├── executor.ts        # Pandoc process spawning & management
 │   │   ├── pre-processor.ts   # Formula extraction, metadata normalization
 │   │   ├── post-processor.ts  # Formula injection, OOXML patching (planned)
+│   │   ├── filters.ts         # Filter/template path resolution
 │   │   ├── types.ts           # TypeScript interfaces
 │   │   ├── errors.ts          # Pandoc-specific error classes
-│   │   ├── index.ts           # Module exports
-│   │   └── filters/           # Lua filters (planned)
-│   │       ├── section-breaks.lua
-│   │       ├── slide-breaks.lua
-│   │       └── metadata-inject.lua
+│   │   └── index.ts           # Module exports
+├── pandoc/
+│   └── filters/               # Lua filters for Pandoc
+│       ├── section-breaks.lua # DOCX page break control
+│       ├── slide-breaks.lua   # PPTX slide boundary control
+│       └── metadata-inject.lua # Metadata normalization
 │   ├── parsers/
 │   │   ├── markdown.ts        # Markdown AST parsing
 │   │   ├── frontmatter-parser.ts  # YAML metadata extraction
@@ -61,12 +63,14 @@ src/
 ├── mcp/
 │   ├── server.ts              # MCP server (STDIO mode)
 │   └── tools.ts               # MCP tool definitions
-└── templates/                  # NEW: Pandoc reference documents
-    ├── reference.docx         # Word styling template
-    ├── reference.pptx         # PowerPoint template
-    └── defaults/
-        ├── docx.yaml          # Pandoc defaults for DOCX
-        └── pptx.yaml          # Pandoc defaults for PPTX
+templates/                         # Pandoc reference documents
+├── reference.docx                 # Word styling template (generate with script)
+├── reference.pptx                 # PowerPoint template (generate with script)
+├── generate-references.sh         # Script to create reference docs
+├── README.md                      # Template setup documentation
+└── defaults/
+    ├── docx.yaml                  # Pandoc defaults for DOCX
+    └── pptx.yaml                  # Pandoc defaults for PPTX
 ```
 
 ## Commands
@@ -202,7 +206,7 @@ See `openspec/changes/` for detailed proposals:
 |--------|--------|-------------|
 | A - Pandoc Executor Foundation | **Done** | Core process wrapper, error handling |
 | B - Pandoc Pre-Processor | **Done** | Formula extraction, metadata normalization |
-| C - Lua Filters & Templates | Planned | section-breaks.lua, reference docs |
+| C - Lua Filters & Templates | **Done** | section-breaks.lua, reference docs |
 | D - Pandoc Post-Processor | Planned | Formula injection, OOXML patching |
 | E - DOCX Converter Migration | Planned | Refactor to use Pandoc |
 | F - PPTX Converter Migration | Planned | Refactor to use Pandoc |
@@ -279,7 +283,15 @@ When working with Pandoc components:
   - Normalizes line endings (CRLF → LF)
   - Returns `{ content, extractedData: { formulas, metadata, tableCount }, warnings }`
 - `PostProcessor.process()` - Call after Pandoc generates output (planned)
-- Lua filters read metadata via `Meta(meta)` function
+- Filter/template path utilities:
+  - `getFilterPath(name)` - Resolve Lua filter path (respects `MD_CONVERTER_FILTERS` env var)
+  - `getTemplatePath(name)` - Resolve template path (respects `MD_CONVERTER_TEMPLATES` env var)
+  - `getDefaultsPath(name)` - Resolve defaults file path
+  - `FILTERS`, `TEMPLATES`, `DEFAULTS` - Constants for file names
+- Lua filters (in `src/pandoc/filters/`):
+  - `section-breaks.lua` - DOCX page breaks (auto/all/none modes)
+  - `slide-breaks.lua` - PPTX slide boundaries (h1/h2/hr modes)
+  - `metadata-inject.lua` - Metadata normalization
 - Reference docs control styling; edit templates/*.docx or templates/*.pptx
 
 When adding new Lua filters:
