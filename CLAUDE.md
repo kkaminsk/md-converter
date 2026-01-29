@@ -211,7 +211,7 @@ See `openspec/changes/` for detailed proposals:
 | B - Pandoc Pre-Processor | **Done** | Formula extraction, metadata normalization |
 | C - Lua Filters & Templates | **Done** | section-breaks.lua, reference docs |
 | D - Pandoc Post-Processor | **Done** | Formula injection, OOXML patching |
-| E - DOCX Converter Migration | Planned | Refactor to use Pandoc |
+| E - DOCX Converter Migration | **Done** | Refactor to use Pandoc |
 | F - PPTX Converter Migration | Planned | Refactor to use Pandoc |
 | G - XLSX Hybrid Implementation | Planned | Pandoc AST + ExcelJS |
 | H - Cleanup & Integration | Planned | Remove old deps, integration tests |

@@ -293,10 +293,14 @@ export class PandocExecutor {
       args.push('--variable', `${key}=${value}`);
     }
 
-    // Add metadata
+    // Add metadata - skip complex values, only pass simple strings
+    // Complex metadata should be embedded in the document's YAML front matter
     for (const [key, value] of Object.entries(options.metadata ?? {})) {
-      const metaValue = typeof value === 'string' ? value : JSON.stringify(value);
-      args.push('--metadata', `${key}=${metaValue}`);
+      if (typeof value !== 'string') continue;
+      // Skip values with spaces on Windows to avoid shell parsing issues
+      // These should be in the document's YAML front matter instead
+      if (process.platform === 'win32' && value.includes(' ')) continue;
+      args.push('--metadata', `${key}=${value}`);
     }
 
     // Add resource paths

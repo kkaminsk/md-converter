@@ -9,6 +9,7 @@ export type PandocInputFormat =
   | 'markdown'
   | 'markdown+yaml_metadata_block'
   | 'markdown+yaml_metadata_block+pipe_tables+grid_tables'
+  | 'markdown+yaml_metadata_block+pipe_tables+fenced_code_blocks'
   | 'gfm'
   | 'commonmark';
 
