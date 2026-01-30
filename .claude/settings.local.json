@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "mcp__winget-mcp__install-winget-package"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
