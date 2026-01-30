@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(*)",
-      "mcp__winget-mcp__install-winget-package"
+      "mcp__winget-mcp__install-winget-package",
+      "mcp__winget-mcp__find-winget-packages"
     ],
     "deny": [],
     "ask": []
