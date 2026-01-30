@@ -450,34 +450,115 @@ md-convert serve
 
 ## MCP Server Usage
 
-### Configure in Cursor
+The MCP (Model Context Protocol) server allows AI assistants to convert Markdown files directly. This integrates with Claude Code (CLI), Cursor, and other MCP-compatible tools.
 
-Add to `.cursor/mcp.json`:
+### Installation
+
+First, build the project:
+
+```bash
+npm install
+npm run build
+```
+
+### Configure for Claude Code (CLI)
+
+Add to your Claude Code MCP settings file (`~/.claude/claude_desktop_config.json` on macOS/Linux or `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
 
 ```json
 {
   "mcpServers": {
     "md-converter": {
       "command": "node",
-      "args": [
-        "/Users/dalerogers/Projects/active/experimental/md_converter/dist/cli/index.js",
-        "serve"
-      ],
+      "args": ["C:/path/to/md-converter/dist/cli/index.js", "serve"]
+    }
+  }
+}
+```
+
+Replace `C:/path/to/md-converter` with the actual path to this project.
+
+### Configure for Cursor
+
+Add to `.cursor/mcp.json` in your workspace or user settings:
+
+```json
+{
+  "mcpServers": {
+    "md-converter": {
+      "command": "node",
+      "args": ["/path/to/md-converter/dist/cli/index.js", "serve"],
       "disabled": false
     }
   }
 }
 ```
 
+### Start MCP Server Manually
+
+For testing or development:
+
+```bash
+# Using npm script
+npm run serve
+
+# Or directly
+node dist/cli/index.js serve
+
+# Dev mode (with TypeScript)
+npm run dev -- serve
+```
+
+The server runs on STDIO and logs to stderr.
+
 ### Available MCP Tools
 
-1. **convert_md_to_docx** - Convert Markdown to Word document
-2. **convert_md_to_xlsx** - Convert Markdown tables to Excel with formulas
-3. **convert_md_to_pptx** - Convert Markdown to PowerPoint presentation
-4. **preview_tables** - Preview table extraction and formulas
-5. **validate_formulas** - Validate formula syntax
+| Tool | Description |
+|------|-------------|
+| `convert_md_to_docx` | Convert Markdown to Word document with formatting, styles, and section breaks |
+| `convert_md_to_xlsx` | Convert Markdown tables to Excel with formula support (`{=SUM(A1:A10)}`) |
+| `convert_md_to_pptx` | Convert Markdown to PowerPoint presentation with slide layouts |
+| `preview_tables` | Preview table extraction showing headers, dimensions, and formula locations |
+| `validate_formulas` | Validate formula syntax and function names before conversion |
 
-### Using in Cursor with Claude
+### Tool Parameters
+
+**convert_md_to_docx**
+- `file_path` (required): Path to the Markdown file
+- `output_path` (optional): Output path (default: same name with .docx)
+- `options.fontSize`: Font size in points (default: 11)
+- `options.fontFamily`: Font family (default: Calibri)
+
+**convert_md_to_xlsx**
+- `file_path` (required): Path to the Markdown file
+- `output_path` (optional): Output path (default: same name with .xlsx)
+- `options.freezeHeaders`: Freeze header row (default: true)
+- `options.autoWidth`: Auto-size columns (default: true)
+
+**convert_md_to_pptx**
+- `file_path` (required): Path to the Markdown file
+- `output_path` (optional): Output path (default: same name with .pptx)
+- `options.theme`: Presentation theme - "light" or "dark" (default: light)
+- `options.fontSize`: Content font size in points (default: 18)
+
+### Using with Claude Code
+
+Once configured, you can ask Claude to convert files directly:
+
+```
+You: "Convert document.md to Word"
+Claude: [Uses convert_md_to_docx tool]
+
+You: "Create Excel from budget.md tables"
+Claude: [Uses convert_md_to_xlsx tool]
+
+You: "Validate the formulas in report.md"
+Claude: [Uses validate_formulas tool]
+```
+
+### Using with Cursor
+
+With the MCP server configured, Claude in Cursor can:
 
 ```
 You: "Convert this markdown to Word"
@@ -488,6 +569,23 @@ Claude: [Uses convert_md_to_xlsx tool]
 ```
 
 **Benefit:** Seamless conversion without leaving your IDE workflow.
+
+### Troubleshooting MCP
+
+**Server not starting:**
+- Check the path to `dist/cli/index.js` is correct
+- Ensure the project is built (`npm run build`)
+- Check stderr for error messages
+
+**Tools not appearing:**
+- Restart your MCP client (Claude Code, Cursor)
+- Verify the JSON configuration syntax
+- Check that `disabled` is not set to `true`
+
+**Conversion errors:**
+- Ensure the Markdown file path is absolute or relative to working directory
+- Check front matter is valid YAML
+- Use `validate_formulas` to check formula syntax before Excel conversion
 
 ---
 
