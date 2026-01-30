@@ -183,6 +183,26 @@ Manually converting breaks the IDE workflow and wastes time.
 | **Node.js** | 18+ | Runtime environment |
 | **Pandoc** | 3.0+ | Document conversion engine |
 
+### Why Pandoc?
+
+[Pandoc](https://pandoc.org/) is a universal document converter that has been the gold standard for document transformation for over 18 years. It's used by publishers, academics, and technical writers worldwide.
+
+**Benefits for this project:**
+
+- **Battle-tested conversion** - Pandoc handles the complex work of generating valid OOXML (the format behind DOCX/PPTX), ensuring documents open correctly in Microsoft Office
+- **Consistent output** - Single conversion engine for all formats, rather than relying on multiple JavaScript libraries with varying quality
+- **Extensible via Lua filters** - Custom transformations (like section breaks and slide boundaries) without modifying Pandoc's core
+- **Reference documents** - Style templates that control fonts, colors, and formatting in output documents
+- **Active maintenance** - Regular updates and broad community support
+
+**How md-converter uses Pandoc:**
+
+1. **Pre-processing** - Extract formulas, normalize metadata
+2. **Pandoc conversion** - Transform Markdown to DOCX/PPTX via Lua filters and reference templates
+3. **Post-processing** - Inject Excel formulas, patch document properties, add classification headers/footers
+
+For XLSX output, md-converter uses a hybrid approach: Pandoc parses the Markdown AST, then ExcelJS generates the workbook with formula support.
+
 ### Installing Pandoc
 
 **Windows (WinGet):**
