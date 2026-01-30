@@ -246,6 +246,20 @@ npm install
 
 # Build the project
 npm run build
+
+# Link globally (makes 'md-convert' available from any directory)
+npm link
+```
+
+After linking, you can run `md-convert` from any location:
+
+```bash
+md-convert ~/Documents/report.md --format docx
+```
+
+To unlink later:
+```bash
+npm unlink -g md-converter
 ```
 
 ---
