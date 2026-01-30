@@ -174,6 +174,47 @@ Manually converting breaks the IDE workflow and wastes time.
 
 ---
 
+## Prerequisites
+
+### Required Software
+
+| Software | Version | Purpose |
+|----------|---------|---------|
+| **Node.js** | 18+ | Runtime environment |
+| **Pandoc** | 3.0+ | Document conversion engine |
+
+### Installing Pandoc
+
+**Windows (WinGet):**
+```bash
+winget install JohnMacFarlane.Pandoc
+```
+
+**Windows (Chocolatey):**
+```bash
+choco install pandoc
+```
+
+**macOS (Homebrew):**
+```bash
+brew install pandoc
+```
+
+**Linux (Debian/Ubuntu):**
+```bash
+sudo apt-get install pandoc
+```
+
+**Verify installation:**
+```bash
+pandoc --version
+# Should show 3.0 or higher
+```
+
+> **Note:** On Windows, if Pandoc is installed but not in PATH, md-converter will auto-detect common installation locations (e.g., `%LOCALAPPDATA%\Pandoc`).
+
+---
+
 ## Installation
 
 ```bash
