@@ -26,6 +26,20 @@ const MIN_PANDOC_VERSION = '3.0';
 /** Default timeout for Pandoc operations (30 seconds) */
 const DEFAULT_TIMEOUT = parseInt(process.env.PANDOC_TIMEOUT || '30000', 10);
 
+/** Common Windows installation paths for Pandoc */
+const WINDOWS_PANDOC_PATHS = [
+  // User install (default WinGet/installer location)
+  path.join(process.env.LOCALAPPDATA || '', 'Pandoc', 'pandoc.exe'),
+  // System-wide install
+  path.join(process.env.PROGRAMFILES || '', 'Pandoc', 'pandoc.exe'),
+  // 32-bit system install
+  path.join(process.env['PROGRAMFILES(X86)'] || '', 'Pandoc', 'pandoc.exe'),
+  // Chocolatey install
+  'C:\\ProgramData\\chocolatey\\bin\\pandoc.exe',
+  // Manual install
+  'C:\\Pandoc\\pandoc.exe',
+];
+
 /**
  * PandocExecutor class for spawning and managing Pandoc processes
  */
@@ -56,6 +70,16 @@ export class PandocExecutor {
       const result = await this.runCommand(pandocCmd, ['--version'], 5000);
 
       if (result.exitCode !== 0) {
+        // On Windows, if pandoc isn't in PATH, try common install locations
+        if (process.platform === 'win32' && !this.pandocPath) {
+          const windowsPath = await this.findWindowsPandocPath();
+          if (windowsPath) {
+            this.pandocPath = windowsPath;
+            this.cachedInstallation = null;
+            return this.checkInstallation();
+          }
+        }
+
         this.cachedInstallation = {
           installed: false,
           error: `Pandoc exited with code ${result.exitCode}`,
@@ -100,6 +124,18 @@ export class PandocExecutor {
       return this.cachedInstallation;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // If Pandoc wasn't found in PATH, try common Windows install locations
+      if (errorMessage.includes('ENOENT') && process.platform === 'win32') {
+        const windowsPath = await this.findWindowsPandocPath();
+        if (windowsPath) {
+          // Found Pandoc in a common Windows location, retry with that path
+          this.pandocPath = windowsPath;
+          this.cachedInstallation = null; // Clear cache to retry
+          return this.checkInstallation();
+        }
+      }
+
       this.cachedInstallation = {
         installed: false,
         error: errorMessage.includes('ENOENT')
@@ -427,6 +463,32 @@ export class PandocExecutor {
       }
     } catch {
       // Ignore errors
+    }
+    return null;
+  }
+
+  /**
+   * Try to find Pandoc in common Windows installation locations
+   */
+  private async findWindowsPandocPath(): Promise<string | null> {
+    if (process.platform !== 'win32') {
+      return null;
+    }
+
+    for (const pandocPath of WINDOWS_PANDOC_PATHS) {
+      if (!pandocPath || pandocPath.includes('undefined')) {
+        continue;
+      }
+      try {
+        await fs.access(pandocPath);
+        // File exists, verify it works
+        const result = await this.runCommand(pandocPath, ['--version'], 5000);
+        if (result.exitCode === 0) {
+          return pandocPath;
+        }
+      } catch {
+        // Path doesn't exist or isn't accessible, try next
+      }
     }
     return null;
   }
