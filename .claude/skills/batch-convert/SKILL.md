@@ -8,7 +8,7 @@ metadata:
   version: "1.0"
 ---
 
-Convert multiple Markdown files to Office formats (DOCX, XLSX, PPTX) at once.
+Convert multiple Markdown files to Office formats (DOCX, XLSX, PPTX) and PDF at once.
 
 **Input**: The argument after `/batch-convert` should be a glob pattern (e.g., `docs/*.md`) or empty to convert all eligible files.
 
@@ -79,13 +79,14 @@ These files are automatically skipped:
 ```bash
 npx md-convert "docs/*.md" --format all
 ```
-Creates .docx, .xlsx (if tables), and .pptx for each file.
+Creates .docx, .xlsx (if tables), .pptx, and .pdf for each file.
 
 ### Convert to specific format
 ```bash
 npx md-convert "docs/*.md" --format docx
 npx md-convert "docs/*.md" --format xlsx
 npx md-convert "docs/*.md" --format pptx
+npx md-convert "docs/*.md" --format pdf
 ```
 
 ### Use format from front matter

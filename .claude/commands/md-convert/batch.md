@@ -5,7 +5,7 @@ category: Document Conversion
 tags: [batch, convert, glob, bulk]
 ---
 
-Convert multiple Markdown files to Office formats at once.
+Convert multiple Markdown files to Office formats (DOCX, XLSX, PPTX) and PDF at once.
 
 **Input**: The argument after `/md-convert:batch` is a glob pattern (e.g., `docs/*.md`).
 
