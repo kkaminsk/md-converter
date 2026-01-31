@@ -138,4 +138,50 @@ export const TOOLS: Tool[] = [
       required: ['file_path'],
     },
   },
+  {
+    name: 'convert_md_to_pdf',
+    description:
+      'Convert a Markdown file to PDF format using Pandoc with wkhtmltopdf or LaTeX engine',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file_path: {
+          type: 'string',
+          description: 'Path to the input Markdown file',
+        },
+        output_path: {
+          type: 'string',
+          description:
+            'Optional output path for the PDF file. If not specified, uses the same name as input with .pdf extension',
+        },
+        options: {
+          type: 'object',
+          description: 'Optional conversion options',
+          properties: {
+            pageSize: {
+              type: 'string',
+              enum: ['A4', 'letter', 'legal'],
+              description: 'Page size (default: A4)',
+            },
+            orientation: {
+              type: 'string',
+              enum: ['portrait', 'landscape'],
+              description: 'Page orientation (default: portrait)',
+            },
+            margins: {
+              type: 'object',
+              description: 'Page margins',
+              properties: {
+                top: { type: 'string', description: 'Top margin (e.g., "1in", "25mm")' },
+                right: { type: 'string', description: 'Right margin' },
+                bottom: { type: 'string', description: 'Bottom margin' },
+                left: { type: 'string', description: 'Left margin' },
+              },
+            },
+          },
+        },
+      },
+      required: ['file_path'],
+    },
+  },
 ];

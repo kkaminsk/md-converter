@@ -60,6 +60,9 @@ export interface PandocOptions {
 
   /** Defaults file path */
   defaultsFile?: string;
+
+  /** PDF engine path or name (e.g., wkhtmltopdf, pdflatex) */
+  pdfEngine?: string;
 }
 
 /**

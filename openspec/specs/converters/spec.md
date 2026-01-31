@@ -18,6 +18,11 @@ All converter modules SHALL be fully type-checked by TypeScript without bypass d
 - **THEN** `xlsx-converter.ts` passes type checking without errors
 - **AND** this serves as the reference for proper typing patterns
 
+#### Scenario: PDF converter type safety
+- **WHEN** `npm run type-check` is executed
+- **THEN** `pdf-converter.ts` passes type checking without errors
+- **AND** no `@ts-nocheck` or `@ts-ignore` directives are present
+
 ### Requirement: Inline Markdown Formatting
 Converters SHALL correctly parse and render inline markdown formatting including nested patterns.
 

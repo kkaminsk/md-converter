@@ -344,6 +344,15 @@ export class PandocExecutor {
       args.push('--resource-path', resourcePath);
     }
 
+    // Add PDF engine
+    if (options.pdfEngine) {
+      // Quote the path on Windows if it contains spaces
+      const enginePath = process.platform === 'win32' && options.pdfEngine.includes(' ')
+        ? `"${options.pdfEngine}"`
+        : options.pdfEngine;
+      args.push('--pdf-engine', enginePath);
+    }
+
     return args;
   }
 

@@ -13,6 +13,7 @@ import * as fs from 'fs/promises';
 import { convertToDocx } from '../core/converters/docx-converter.js';
 import { convertToXlsx } from '../core/converters/xlsx-converter.js';
 import { convertToPptx } from '../core/converters/pptx-converter.js';
+import { convertToPdf } from '../core/converters/pdf-converter.js';
 import { parseMarkdown } from '../core/parsers/markdown.js';
 import { processTable, extractFormulas } from '../core/parsers/table-parser.js';
 import { validateFormula } from '../core/parsers/formula-parser.js';
@@ -35,13 +36,13 @@ const program = new Command();
 
 program
   .name('md-convert')
-  .description('Convert Markdown files to DOCX, XLSX, and PPTX formats with Excel formula support')
+  .description('Convert Markdown files to DOCX, XLSX, PPTX, and PDF formats with Excel formula support')
   .version('1.0.0');
 
 // Convert command
 program
   .argument('<input>', 'Input markdown file or glob pattern')
-  .option('-f, --format <format>', 'Output format: docx, xlsx, pptx, or all', 'all')
+  .option('-f, --format <format>', 'Output format: docx, xlsx, pptx, pdf, or all', 'all')
   .option('-o, --output <path>', 'Output file path (for single file)')
   .option('-d, --output-dir <dir>', 'Output directory (for batch processing)')
   .option('--freeze-headers', 'Freeze header row in Excel (XLSX only)', true)
@@ -110,12 +111,12 @@ program.parse();
  */
 async function handleConvert(input: string, options: any): Promise<void> {
   const format = options.format.toLowerCase();
-  const formats = format === 'all' ? ['docx', 'xlsx', 'pptx'] : [format];
+  const formats = format === 'all' ? ['docx', 'xlsx', 'pptx', 'pdf'] : [format];
 
   // Validate format
   for (const fmt of formats) {
-    if (!['docx', 'xlsx', 'pptx'].includes(fmt)) {
-      throw new Error(`Invalid format: ${fmt}. Must be docx, xlsx, pptx, or all`);
+    if (!['docx', 'xlsx', 'pptx', 'pdf'].includes(fmt)) {
+      throw new Error(`Invalid format: ${fmt}. Must be docx, xlsx, pptx, pdf, or all`);
     }
   }
 
@@ -399,6 +400,10 @@ async function convertFile(
 
     case 'pptx':
       await convertToPptx(inputPath, outputPath, conversionOptions);
+      break;
+
+    case 'pdf':
+      await convertToPdf(inputPath, outputPath, conversionOptions);
       break;
 
     default:

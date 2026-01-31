@@ -16,6 +16,7 @@ import * as path from 'path';
 import { convertToDocx } from '../core/converters/docx-converter.js';
 import { convertToXlsx, previewTableConversion } from '../core/converters/xlsx-converter.js';
 import { convertToPptx } from '../core/converters/pptx-converter.js';
+import { convertToPdf } from '../core/converters/pdf-converter.js';
 import { parseMarkdown } from '../core/parsers/markdown.js';
 import { processTable, extractFormulas } from '../core/parsers/table-parser.js';
 import { validateFormula } from '../core/parsers/formula-parser.js';
@@ -72,6 +73,9 @@ export async function startMcpServer(): Promise<void> {
 
         case 'validate_formulas':
           return await handleValidateFormulas(args);
+
+        case 'convert_md_to_pdf':
+          return await handleConvertToPdf(args);
 
         default:
           throw new Error(`Unknown tool: ${name}`);
@@ -302,6 +306,32 @@ async function handlePreviewTables(args: any) {
           {
             tableCount: parsed.tables.length,
             tables: previews,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Handle convert to PDF tool
+ */
+async function handleConvertToPdf(args: any) {
+  const { file_path, output_path, options = {} } = args;
+
+  const result = await convertToPdf(file_path, output_path, options);
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify(
+          {
+            success: result.success,
+            outputPath: result.outputPath,
+            warnings: result.warnings,
           },
           null,
           2

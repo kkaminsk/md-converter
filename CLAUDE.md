@@ -4,7 +4,7 @@ This file provides guidance for AI assistants working with this codebase.
 
 ## Project Overview
 
-MD Converter is a TypeScript tool that converts Markdown files to Microsoft Office formats (DOCX, XLSX, PPTX). It supports YAML front matter for metadata, Excel formulas in tables, and provides both CLI and MCP (Model Context Protocol) server interfaces.
+MD Converter is a TypeScript tool that converts Markdown files to Microsoft Office formats (DOCX, XLSX, PPTX) and PDF. It supports YAML front matter for metadata, Excel formulas in tables, and provides both CLI and MCP (Model Context Protocol) server interfaces.
 
 **Status:** Migrating to Pandoc-based conversion engine (see [Pandoc Migration](#pandoc-migration) below).
 
@@ -39,6 +39,7 @@ src/
 │   │   ├── docx-converter.ts  # Markdown → Word (via Pandoc)
 │   │   ├── xlsx-converter.ts  # Markdown tables → Excel (Pandoc AST + ExcelJS)
 │   │   ├── pptx-converter.ts  # Markdown → PowerPoint (via Pandoc)
+│   │   ├── pdf-converter.ts   # Markdown → PDF (via Pandoc + wkhtmltopdf)
 │   │   └── section-rules.ts   # Section/slide break logic
 │   ├── pandoc/                # Pandoc integration layer
 │   │   ├── executor.ts        # Pandoc process spawning & management
@@ -130,7 +131,7 @@ Documents can include metadata that controls conversion:
 
 ```yaml
 ---
-format: docx                    # Required: docx, xlsx, pptx, or all
+format: docx                    # Required: docx, xlsx, pptx, pdf, or all
 title: "Document Title"         # Required
 author: "Name"                  # Recommended
 date: "2025-01-28"             # YYYY-MM-DD format
@@ -173,12 +174,13 @@ Files are automatically excluded from batch conversion:
 
 ## MCP Tools
 
-The MCP server exposes 5 tools:
+The MCP server exposes 6 tools:
 1. `convert_md_to_docx` - Markdown to Word
 2. `convert_md_to_xlsx` - Markdown tables to Excel with formulas
 3. `convert_md_to_pptx` - Markdown to PowerPoint
-4. `preview_tables` - Preview table extraction
-5. `validate_formulas` - Validate formula syntax
+4. `convert_md_to_pdf` - Markdown to PDF
+5. `preview_tables` - Preview table extraction
+6. `validate_formulas` - Validate formula syntax
 
 ## Architecture Notes
 
@@ -250,9 +252,71 @@ Markdown Input
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `PANDOC_PATH` | Custom Pandoc binary location | Auto-detect |
+| `WKHTMLTOPDF_PATH` | Custom wkhtmltopdf binary location (for PDF) | Auto-detect |
 | `MD_CONVERTER_TEMPLATES` | Custom templates directory | `./templates` |
 | `MD_CONVERTER_FILTERS` | Custom filters directory | `./src/pandoc/filters` |
 | `PANDOC_TIMEOUT` | Conversion timeout (ms) | `30000` |
+
+## PDF Conversion
+
+PDF output requires a PDF engine. The converter automatically discovers available engines in this order:
+
+1. **wkhtmltopdf** (recommended) - Lightweight, no LaTeX needed
+2. **pdflatex/xelatex/lualatex** - Higher quality typography, requires TeX distribution
+
+### Installing PDF Engine
+
+**Windows:**
+```bash
+# wkhtmltopdf (recommended)
+winget install wkhtmltopdf.wkhtmltox
+
+# Or MiKTeX for LaTeX engines
+winget install MiKTeX.MiKTeX
+```
+
+**macOS:**
+```bash
+# wkhtmltopdf (recommended)
+brew install wkhtmltopdf
+
+# Or MacTeX for LaTeX engines
+brew install --cask mactex
+```
+
+**Linux:**
+```bash
+# wkhtmltopdf (recommended)
+sudo apt install wkhtmltopdf
+
+# Or TeX Live for LaTeX engines
+sudo apt install texlive-latex-base
+```
+
+### PDF Options
+
+```typescript
+interface PdfConversionOptions {
+  pageSize?: 'A4' | 'letter' | 'legal';  // Default: A4
+  margins?: {
+    top?: string;     // e.g., "1in", "25mm"
+    right?: string;
+    bottom?: string;
+    left?: string;
+  };
+  orientation?: 'portrait' | 'landscape';
+}
+```
+
+### CLI Usage
+
+```bash
+# Convert to PDF
+md-convert document.md --format pdf
+
+# Convert to all formats including PDF
+md-convert document.md --format all
+```
 
 ## Testing
 

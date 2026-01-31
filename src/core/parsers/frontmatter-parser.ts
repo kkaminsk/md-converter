@@ -8,7 +8,7 @@ import { FrontMatterError } from '../errors.js';
 
 export interface DocumentMetadata {
   // Required fields
-  format: 'docx' | 'pptx' | 'xlsx' | 'docx,pptx' | 'docx,xlsx' | 'all';
+  format: 'docx' | 'pptx' | 'xlsx' | 'pdf' | 'docx,pptx' | 'docx,xlsx' | 'docx,pdf' | 'all';
   title: string;
 
   // Extended fields
@@ -44,7 +44,7 @@ export interface ValidationResult {
   warnings: string[];
 }
 
-const VALID_FORMATS = ['docx', 'pptx', 'xlsx', 'docx,pptx', 'docx,xlsx', 'all'];
+const VALID_FORMATS = ['docx', 'pptx', 'xlsx', 'pdf', 'docx,pptx', 'docx,xlsx', 'docx,pdf', 'all'];
 const VALID_STATUSES = ['draft', 'review', 'approved', 'final'];
 const VALID_SECTION_BREAKS = ['auto', 'all', 'none'];
 const VALID_SLIDE_BREAKS = ['h1', 'h2', 'hr'];
@@ -274,7 +274,7 @@ export function getFormats(metadata: DocumentMetadata | null): string[] {
   if (!metadata) return ['docx']; // Default format
 
   if (metadata.format === 'all') {
-    return ['docx', 'pptx', 'xlsx'];
+    return ['docx', 'pptx', 'xlsx', 'pdf'];
   }
 
   return metadata.format.split(',') as string[];
@@ -285,7 +285,7 @@ export function getFormats(metadata: DocumentMetadata | null): string[] {
  */
 export function shouldGenerateFormat(
   metadata: DocumentMetadata | null,
-  format: 'docx' | 'pptx' | 'xlsx'
+  format: 'docx' | 'pptx' | 'xlsx' | 'pdf'
 ): boolean {
   const formats = getFormats(metadata);
   return formats.includes(format);
