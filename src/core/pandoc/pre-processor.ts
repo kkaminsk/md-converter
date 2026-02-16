@@ -6,6 +6,7 @@
  * - Normalizing line endings for cross-platform consistency
  */
 
+import * as yaml from 'js-yaml';
 import { parseFrontMatter } from '../parsers/frontmatter-parser.js';
 import { validateFormula } from '../parsers/formula-parser.js';
 import { PreProcessorError } from './errors.js';
@@ -286,35 +287,27 @@ export class PreProcessor {
       return content;
     }
 
-    // Reconstruct YAML front matter
+    // Reconstruct YAML front matter using js-yaml for proper serialization
     const normalizedMeta = this.normalizeMetadata(metadata);
-    const yamlLines: string[] = ['---'];
 
-    if (normalizedMeta) {
-      for (const [key, value] of Object.entries(normalizedMeta)) {
-        if (value === undefined) continue;
+    if (!normalizedMeta) {
+      return content;
+    }
 
-        if (Array.isArray(value)) {
-          yamlLines.push(`${key}:`);
-          for (const item of value) {
-            yamlLines.push(`  - ${JSON.stringify(item)}`);
-          }
-        } else if (typeof value === 'string') {
-          // Quote strings that might need it
-          if (value.includes(':') || value.includes('#') || value.includes('\n')) {
-            yamlLines.push(`${key}: "${value.replace(/"/g, '\\"')}"`);
-          } else {
-            yamlLines.push(`${key}: ${value}`);
-          }
-        } else if (typeof value === 'boolean') {
-          yamlLines.push(`${key}: ${value}`);
-        } else {
-          yamlLines.push(`${key}: ${JSON.stringify(value)}`);
-        }
+    // Filter out undefined values
+    const cleanMeta: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(normalizedMeta)) {
+      if (value !== undefined) {
+        cleanMeta[key] = value;
       }
     }
 
-    yamlLines.push('---');
-    return yamlLines.join('\n') + '\n' + content;
+    const yamlStr = yaml.dump(cleanMeta, {
+      lineWidth: -1, // Don't wrap lines
+      quotingType: '"',
+      forceQuotes: false,
+    });
+
+    return `---\n${yamlStr}---\n${content}`;
   }
 }

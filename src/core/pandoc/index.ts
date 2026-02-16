@@ -52,6 +52,9 @@ export { PreProcessor } from './pre-processor.js';
 // Post-processor
 export { PostProcessor } from './post-processor.js';
 
+// XML utilities
+export { escapeXml, updateXmlElement } from './xml-utils.js';
+
 // Filter and template utilities
 export {
   getFiltersDir,

@@ -32,12 +32,28 @@ import {
   ValidationError,
 } from '../core/errors.js';
 
+/**
+ * Typed CLI options interface
+ */
+interface CliOptions {
+  format: string;
+  output?: string;
+  outputDir?: string;
+  freezeHeaders: boolean;
+  autoWidth: boolean;
+  theme: string;
+  fontFamily: string;
+  fontSize: string;
+  strict: boolean;
+  validate: boolean;
+}
+
 const program = new Command();
 
 program
   .name('md-convert')
   .description('Convert Markdown files to DOCX, XLSX, PPTX, and PDF formats with Excel formula support')
-  .version('1.0.0');
+  .version('2.1.0');
 
 // Convert command
 program
@@ -109,7 +125,7 @@ program.parse();
 /**
  * Handle convert command
  */
-async function handleConvert(input: string, options: any): Promise<void> {
+async function handleConvert(input: string, options: CliOptions): Promise<void> {
   const format = options.format.toLowerCase();
   const formats = format === 'all' ? ['docx', 'xlsx', 'pptx', 'pdf'] : [format];
 
@@ -359,7 +375,7 @@ async function findInputFiles(pattern: string): Promise<string[]> {
 /**
  * Get output path for a file
  */
-async function getOutputPath(inputPath: string, format: string, options: any): Promise<string> {
+async function getOutputPath(inputPath: string, format: string, options: CliOptions): Promise<string> {
   if (options.output && !options.outputDir) {
     // Single file output specified
     return options.output;
@@ -379,14 +395,14 @@ async function convertFile(
   inputPath: string,
   outputPath: string,
   format: string,
-  options: any
+  options: CliOptions
 ): Promise<void> {
   const conversionOptions = {
     freezeHeaders: options.freezeHeaders,
     autoWidth: options.autoWidth,
-    theme: options.theme,
+    theme: options.theme as 'light' | 'dark',
     fontFamily: options.fontFamily,
-    fontSize: parseInt(options.fontSize, 10),
+    fontSize: parseInt(options.fontSize, 10) || 12,
   };
 
   switch (format) {

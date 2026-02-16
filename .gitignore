@@ -24,6 +24,7 @@ npm-debug.log*
 
 # Test output
 coverage/
+tests/output/
 
 # Example outputs
 examples/output/*.docx

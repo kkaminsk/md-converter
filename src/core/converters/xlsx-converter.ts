@@ -7,16 +7,11 @@ import ExcelJS from 'exceljs';
 import { parseMarkdown, type TableData } from '../parsers/markdown.js';
 import { processTable, type ProcessedTable, type DateFormat } from '../parsers/table-parser.js';
 import { validateFormula } from '../parsers/formula-parser.js';
+import { parseInlineTokens, mergeAdjacentSegments } from '../parsers/inline-parser.js';
 import { PreProcessor } from '../pandoc/pre-processor.js';
 import { ConversionError } from '../errors.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-
-interface RichTextSegment {
-  text: string;
-  bold?: boolean;
-  italic?: boolean;
-}
 
 export interface XlsxConversionOptions {
   freezeHeaders?: boolean;
@@ -147,49 +142,24 @@ export async function convertMarkdownToXlsx(
 
 /**
  * Parse markdown formatting in text and convert to Excel rich text
+ * Uses token-based inline parser for correct handling of nested formatting
  */
 function parseMarkdownFormatting(text: string): string | { richText: ExcelJS.RichText[] } {
   // Check if there's any markdown formatting
-  if (!text.includes('**') && !text.includes('*') && !text.includes('_')) {
+  if (!text.includes('**') && !text.includes('*') && !text.includes('_') && !text.includes('`')) {
     return text;
   }
 
-  const segments: RichTextSegment[] = [];
-  // Split by bold (**text**), italic (*text* or _text_)
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_)/);
-
-  for (const part of parts) {
-    if (!part) continue;
-
-    if (part.startsWith('**') && part.endsWith('**')) {
-      // Bold
-      segments.push({
-        text: part.slice(2, -2),
-        bold: true,
-      });
-    } else if (part.startsWith('*') && part.endsWith('*')) {
-      // Italic
-      segments.push({
-        text: part.slice(1, -1),
-        italic: true,
-      });
-    } else if (part.startsWith('_') && part.endsWith('_')) {
-      // Italic (underscore)
-      segments.push({
-        text: part.slice(1, -1),
-        italic: true,
-      });
-    } else {
-      // Regular text
-      segments.push({
-        text: part,
-      });
-    }
-  }
+  const segments = mergeAdjacentSegments(parseInlineTokens(text));
 
   // If only one segment with no formatting, return plain text
-  if (segments.length === 1 && !segments[0].bold && !segments[0].italic) {
+  if (segments.length === 1 && !segments[0].bold && !segments[0].italic && !segments[0].code) {
     return segments[0].text;
+  }
+
+  // If no formatting was detected at all, return plain text
+  if (segments.length === 0) {
+    return text;
   }
 
   // Convert to ExcelJS rich text format
@@ -197,6 +167,7 @@ function parseMarkdownFormatting(text: string): string | { richText: ExcelJS.Ric
     const font: Partial<ExcelJS.Font> = {};
     if (segment.bold) font.bold = true;
     if (segment.italic) font.italic = true;
+    if (segment.code) font.name = 'Courier New';
 
     return {
       text: segment.text,

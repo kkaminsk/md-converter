@@ -5,6 +5,7 @@
 
 import JSZip from 'jszip';
 import { readFile, writeFile } from 'fs/promises';
+import { escapeXml, updateXmlElement } from './xml-utils.js';
 import type { PostProcessorResult } from './types.js';
 import type { DocumentMetadata } from '../parsers/frontmatter-parser.js';
 
@@ -272,35 +273,4 @@ async function patchDocumentProperties(
   return { modifications, warnings };
 }
 
-/**
- * Update or insert an XML element value
- */
-function updateXmlElement(xml: string, tagName: string, value: string): string {
-  const escapedValue = escapeXml(value);
-  const regex = new RegExp(`<${tagName}[^>]*>([^<]*)</${tagName}>`, 'g');
-
-  if (regex.test(xml)) {
-    return xml.replace(regex, `<${tagName}>${escapedValue}</${tagName}>`);
-  }
-
-  // Try to insert before closing tag
-  const closingTag = '</cp:coreProperties>';
-  if (xml.includes(closingTag)) {
-    const newElement = `  <${tagName}>${escapedValue}</${tagName}>\n`;
-    return xml.replace(closingTag, newElement + closingTag);
-  }
-
-  return xml;
-}
-
-/**
- * Escape special XML characters
- */
-function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
+// escapeXml and updateXmlElement imported from xml-utils.ts

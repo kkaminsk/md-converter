@@ -21,6 +21,7 @@ import { parseMarkdown } from '../core/parsers/markdown.js';
 import { processTable, extractFormulas } from '../core/parsers/table-parser.js';
 import { validateFormula } from '../core/parsers/formula-parser.js';
 import { TOOLS } from './tools.js';
+import { validateConvertArgs, validateFilePathArgs } from './types.js';
 import {
   ConverterError,
   FormulaValidationError,
@@ -36,7 +37,7 @@ export async function startMcpServer(): Promise<void> {
   const server = new Server(
     {
       name: 'md-converter',
-      version: '1.0.0',
+      version: '2.1.0',
     },
     {
       capabilities: {
@@ -202,8 +203,8 @@ function formatMcpError(error: unknown) {
 /**
  * Handle convert to DOCX tool
  */
-async function handleConvertToDocx(args: any) {
-  const { file_path, output_path, options = {} } = args;
+async function handleConvertToDocx(args: unknown) {
+  const { file_path, output_path, options } = await validateConvertArgs(args);
 
   const result = await convertToDocx(file_path, output_path, options);
 
@@ -228,8 +229,8 @@ async function handleConvertToDocx(args: any) {
 /**
  * Handle convert to XLSX tool
  */
-async function handleConvertToXlsx(args: any) {
-  const { file_path, output_path, options = {} } = args;
+async function handleConvertToXlsx(args: unknown) {
+  const { file_path, output_path, options } = await validateConvertArgs(args);
 
   const result = await convertToXlsx(file_path, output_path, options);
 
@@ -257,8 +258,8 @@ async function handleConvertToXlsx(args: any) {
 /**
  * Handle convert to PPTX tool
  */
-async function handleConvertToPptx(args: any) {
-  const { file_path, output_path, options = {} } = args;
+async function handleConvertToPptx(args: unknown) {
+  const { file_path, output_path, options } = await validateConvertArgs(args);
 
   const result = await convertToPptx(file_path, output_path, options);
 
@@ -284,8 +285,8 @@ async function handleConvertToPptx(args: any) {
 /**
  * Handle preview tables tool
  */
-async function handlePreviewTables(args: any) {
-  const { file_path } = args;
+async function handlePreviewTables(args: unknown) {
+  const { file_path } = await validateFilePathArgs(args);
 
   const content = await fs.readFile(file_path, 'utf-8');
   const parsed = parseMarkdown(content);
@@ -318,8 +319,8 @@ async function handlePreviewTables(args: any) {
 /**
  * Handle convert to PDF tool
  */
-async function handleConvertToPdf(args: any) {
-  const { file_path, output_path, options = {} } = args;
+async function handleConvertToPdf(args: unknown) {
+  const { file_path, output_path, options } = await validateConvertArgs(args);
 
   const result = await convertToPdf(file_path, output_path, options);
 
@@ -344,8 +345,8 @@ async function handleConvertToPdf(args: any) {
 /**
  * Handle validate formulas tool
  */
-async function handleValidateFormulas(args: any) {
-  const { file_path } = args;
+async function handleValidateFormulas(args: unknown) {
+  const { file_path } = await validateFilePathArgs(args);
 
   const content = await fs.readFile(file_path, 'utf-8');
   const parsed = parseMarkdown(content);

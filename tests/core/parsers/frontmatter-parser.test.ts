@@ -88,13 +88,13 @@ title: "Test"
     });
 
     it('should error on invalid format', () => {
-      const result = validateFrontMatter({ format: 'pdf', title: 'Test' });
+      const result = validateFrontMatter({ format: 'rtf', title: 'Test' });
       expect(result.valid).toBe(false);
       expect(result.errors).toContainEqual(expect.stringContaining('Invalid format'));
     });
 
     it('should accept all valid formats', () => {
-      const validFormats = ['docx', 'pptx', 'xlsx', 'docx,pptx', 'docx,xlsx', 'all'];
+      const validFormats = ['docx', 'pptx', 'xlsx', 'pdf', 'docx,pptx', 'docx,xlsx', 'docx,pdf', 'all'];
       for (const format of validFormats) {
         const result = validateFrontMatter({ format, title: 'Test' });
         expect(result.errors.filter(e => e.includes('Invalid format'))).toHaveLength(0);
@@ -234,7 +234,7 @@ title: "Test"
 
     it('should return all formats for "all"', () => {
       const metadata = { format: 'all', title: 'Test' } as DocumentMetadata;
-      expect(getFormats(metadata)).toEqual(['docx', 'pptx', 'xlsx']);
+      expect(getFormats(metadata)).toEqual(['docx', 'pptx', 'xlsx', 'pdf']);
     });
 
     it('should split comma-separated formats', () => {
